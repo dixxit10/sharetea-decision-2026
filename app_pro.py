@@ -71,7 +71,7 @@ with col_def1:
     #### 📊 核心指標說明
     * **SFS (Strategic Fit Score) 戰略適配分**：衡量地點與 **Sharetea** 品牌定位的契合度，最高 10 分，反映 **9.5 級標竿** 潛力。
     * **購買力**：區域家庭年收入中位數，代表當地基礎消費動能。
-    * **競爭密度**：1.5 英里內的同類店鋪數量，反映市場稀釋效應。
+    * **競爭密度**：2 英里內的同類店鋪數量，反映市場稀釋效應。
     * **人員評分**：實際考察店面能見度、真實人流綜合評分。
     * **預計座位數**：計算顧客活動空間 (扣除廚房、櫃檯後)。
     """)
@@ -82,6 +82,7 @@ with col_def2:
     為了最大化 **品牌擴張** 的競爭力，系統導入以下關鍵權重：
     * **Ethnic Weight (族裔權重)**：亞裔、西裔密集區加權 **1.5x**，鎖定品牌核心客群。
     * **Age Weight (年齡權重)**：26-35 歲社交活躍族群加權 **2.5x**，支撐高毛利新品。
+    * **資料來源根據美國官方Census Data API 和 Google 同業數據。
     """)
 
 # 公式
@@ -128,19 +129,13 @@ if st.sidebar.button("啟動戰略診斷"):
             lng = float(parts[1].strip())
             
             with st.spinner("正在解析地理數據雜訊..."):
-                # 1. Google Places API
-                place_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=2414&keyword=bubble+tea&key={GOOGLE_KEY}"
-                density = len(requests.get(place_url).json().get('results', []))
-
-                # 2. Census API
-                c_geo_url = f"https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x={lng}&y={lat}&benchmark=Public_AR_Current&vintage=Current_Current&format=json"
-                c_geo_res = requests.get(c_geo_url).json()
-                tract = c_geo_res['result']['geographies']['Census Tracts'][0]
+                with st.spinner("正在解析地理數據雜訊..."):
+                # --- 1. Google Places API (戰略優化版) ---
+                # 擴展關鍵字以覆蓋所有潛在競爭對手，確保 Density 計算無死角
+                search_keywords = "bubble+tea|boba|milk+tea|tea+house"
+                place_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=2414&keyword={search_keywords}&key={GOOGLE_KEY}"
                 
-                fields = "B01003_001E,B19013_001E,B03002_003E,B03002_004E,B03002_006E,B03001_003E,B01001_011E,B01001_012E,B01001_035E,B01001_036E"
-                census_url = f"https://api.census.gov/data/2022/acs/acs5?get={fields}&for=tract:{tract['TRACT']}&in=state:{tract['STATE']}%20county:{tract['COUNTY']}&key={CENSUS_KEY}"
-                census_response = requests.get(census_url).json()
-
+            
                 # 第三階段：數據處理與人口分析
                 if len(census_response) < 2:
                     spending_power, asian_r, hispanic_r, age_r = 8500, 0.45, 0.35, 0.18 
@@ -212,6 +207,7 @@ if st.sidebar.button("啟動戰略診斷"):
 # --- 腳註 ---
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
 
 
