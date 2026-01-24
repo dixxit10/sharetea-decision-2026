@@ -104,7 +104,7 @@ if check_password():
     def get_vision_analysis(image_bytes, sfs_context, api_key):
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-3-flash-preview')
             img = Image.open(image_bytes)
             prompt = f"""
             身為 Marketing Designer 顧問，請判讀這張地圖截圖中的『視覺雜訊』與『鄰里基因』。
@@ -198,4 +198,5 @@ if check_password():
             except Exception as e: st.error(f"分析異常: {e}")
 
     st.caption("Produced by Marketing Designer. v8.7.0 | Reducing Noise. Increasing Clarity.")
+
 
