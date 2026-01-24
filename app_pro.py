@@ -47,18 +47,18 @@ if check_password():
         """, unsafe_allow_html=True)
 
     # --- 2. 名詞定義 (Definitions) ---
-    st.title("📚 名詞定義 v8.7")
+    st.title("📚 名詞定義 v8.7.2")
     st.markdown("<p style='color: #8B949E; font-size: 1.2em; margin-top: -15px;'>Reducing Noise. Increasing Clarity.</p>", unsafe_allow_html=True)
 
     def_col1, def_col2, def_col3 = st.columns(3)
     with def_col1:
-        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段潛力的核心指標。整合消費力、族群、空間壓力與 AI 判讀之環境權重。</div>", unsafe_allow_html=True)
-        st.markdown("<div class='definition-box'><b>空間壓力係數 (Pressure Coeff)</b><br>當人均面積低於 25 sq. ft. 時，判定為體驗雜訊並下修分值。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段潛力的指標。整合消費力、族群權重、空間壓力與 AI 視覺診斷。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>空間壓力係數 (Pressure Coeff)</b><br>當人均面積低於 25 sq. ft. 時，判定為體驗雜訊並下修 SFS 分值。</div>", unsafe_allow_html=True)
     with def_col2:
         st.markdown("<div class='definition-box'><b>環境與地段基因</b><br>透過 Gemini AI 視覺掃描靜態地圖，識別鄰里質感與視覺雜訊 (如汽修廠、加油站)。</div>", unsafe_allow_html=True)
-        st.markdown("<div class='definition-box'><b>月均基礎消費力</b><br>連動 CENSUS API。代表該普查區之月收入中位數，決定產品溢價空間。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>月均基礎消費力</b><br>連動 CENSUS API。代表普查區之月收入中位數，決定產品定價天花板。</div>", unsafe_allow_html=True)
     with def_col3:
-        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>品牌指標 (M): 15000+<br>社區標準 (C): 8500+<br>高效普及 (X): < 8500</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>訊號極限 (Signal-S): 15000+<br>社區標準 (C): 8500+<br>高效普及 (X): < 8500</div>", unsafe_allow_html=True)
         st.markdown("<div class='definition-box'><b>顧客活動區 (200-460 sqft)</b><br>精確定義之美學介入範圍，排除吧台與工作區。</div>", unsafe_allow_html=True)
 
     st.divider()
@@ -72,7 +72,6 @@ if check_password():
     cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 200, 460, 300)
     seat_choice = st.sidebar.radio("座位數:", ["0-5 席", "6-12 席", "13-20 席"])
 
-    # 空間壓力偵測邏輯
     est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20
     area_per_seat = cust_area / est_seats
     pressure_coeff = 1.2 if area_per_seat >= 30 else 1.0 if area_per_seat >= 25 else 0.75
@@ -108,9 +107,9 @@ if check_password():
             img = Image.open(image_bytes)
             prompt = f"""
             身為 Marketing Designer 顧問，請判讀這張地圖截圖中的『視覺雜訊』與『鄰里基因』。
-            數據：{sfs_context}
-            1.【環境基因判讀】：識別地圖中的內容，判斷是哪種商業類型，例如快餐導向、辦公商圈、精緻商場、社區鄰里。
-            2.【轉型執行建議】：針對該區人口組成結果，提供執行建議。
+            當前數據：{sfs_context}
+            1.【環境基因判讀】：識別地圖內容與商業類型 (快餐/辦公/精緻/社區)。特別偵測加油站與汽修廠雜訊。
+            2.【轉型執行建議】：結合族群組成，提供空間美學介入建議。
             """
             response = model.generate_content([prompt, img])
             return response.text
@@ -125,25 +124,22 @@ if check_password():
                 lat, lng = float(parts[0].strip()), float(parts[1].strip())
                 
                 with st.spinner("正在執行全維度數據核算與視覺基因掃描..."):
-                    # 數據獲取
                     spending_power = get_census_data(lat, lng, CENSUS_KEY)
                     if spending_power is None:
-                        st.error("❌ 無法獲取普查數據。")
+                        st.error("❌ 無法獲獲取普查數據。")
                         st.stop()
                     
                     density = get_nearby_density(lat, lng, G_KEY)
                     
-                    # 族裔與年齡 (CENSUS 聯動權重)
+                    # 族群與年齡比例
                     eth_dict = {"華裔/東亞裔": 0.35, "墨西哥裔/西裔": 0.30, "東南亞裔": 0.15, "白人": 0.1, "南亞裔": 0.05, "其他": 0.05}
-                    age_dict = {"18-24 歲 (視覺)": 0.25, "25-34 歲 (社交主力)": 0.40, "35 歲以上": 0.35}
+                    age_dict = {"18-24 歲": 0.25, "25-34 歲 (社交主力)": 0.40, "35 歲以上": 0.35}
                     
-                    # SFS 核心演算 (Signal-S 戰略升級)
                     target_index = (eth_dict["華裔/東亞裔"] * 2.5) + (age_dict["25-34 歲 (社交主力)"] * 2.0)
                     seat_mult = 1.5 if "13-20" in seat_choice else 1.2 if "6-12" in seat_choice else 1.0
                     env_factor = 1.25 if "Community" in loc_type else 0.85 if "Mall" in loc_type else 1.1
                     
                     final_sfs = ((spending_power * target_index) * 7 * env_factor * seat_mult * pressure_coeff) / (math.pow(density, 0.7) + 1)
-                    
                     level = "訊號極限 (Signal-S)" if final_sfs >= 15000 else "社區標準 (C)" if final_sfs >= 8500 else "高效普及 (X)"
                     gap_pct = max(0, (15000 - final_sfs) / 15000)
 
@@ -173,21 +169,18 @@ if check_password():
                         st.table(pd.DataFrame(sorted(eth_dict.items(), key=lambda x:x[1], reverse=True), columns=["Category", "Ratio"]).style.format({"Ratio":"{:.1%}"}))
                         st.table(pd.DataFrame(sorted(age_dict.items(), key=lambda x:x[1], reverse=True), columns=["Segment", "Ratio"]).style.format({"Ratio":"{:.1%}"}))
                     
-                   with d2:
-    st.subheader("🧠 行為預判與戰略分析")
-    # 依據 SFS 分數判斷流量本質
-    if final_sfs > 10000:
-        behavior = "目的型社交消費"
-        advice = "💎 建議：強化品牌力、聯名活動、空間升級。"
-        mode_color = "success"
-    else:
-        behavior = "便利驅動消費"
-        advice = "🛵 建議：優化點單周轉效率、強化社區積分聯動。"
-        mode_color = "info"
-    
-    st.write(f"當前模式：**{behavior}**")
-    st.info(f"人均空間 {area_per_seat:.1f} sq. ft.。距離上一級門檻尚有 {gap_pct:.1%}。")
-    st.warning(advice) # 這裡會根據模式自動切換建議內容
+                    with d2:
+                        st.subheader("🧠 行為預判與戰略分析")
+                        if final_sfs > 10000:
+                            behavior = "目的型社交消費"
+                            advice = "💎 建議：強化視覺降噪 (Visual Noise Cancellation)、配置 A+ 級視覺屏障模組，以抵銷外部雜訊並深化 Miffy 聯名體驗。"
+                        else:
+                            behavior = "便利驅動消費"
+                            advice = "🛵 建議：優化點單與取貨動線之清晰度、強化鄰里積點聯動、配置標準化機能家具模組。"
+                        
+                        st.write(f"當前模式：**{behavior}**")
+                        st.info(f"人均空間 {area_per_seat:.1f} sq. ft.。距離上一級門檻尚有 {gap_pct:.1%}。")
+                        st.warning(advice)
 
                     st.divider()
                     st.subheader("🤖 Gemini 視覺診斷與轉型建議")
@@ -197,6 +190,4 @@ if check_password():
 
             except Exception as e: st.error(f"分析異常: {e}")
 
-    st.caption("Produced by Marketing Designer. v8.7.0 | Reducing Noise. Increasing Clarity.")
-
-
+    st.caption("Produced by Marketing Designer. v8.7.2 | Reducing Noise. Increasing Clarity.")
