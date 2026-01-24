@@ -94,10 +94,10 @@ if st.sidebar.button("啟動選址戰略診斷"):
             gap_info = "📍 戰略穩定：明確維持該戰略位置。"
             if level == "社區標準 (Community Standard)":
                 gap = (T_HOT - final_sfs) / T_HOT
-                if gap <= 0.1: gap_info = f"📈 **潛力躍升**：距離『熱區指標』僅差 {gap:.1%}。"
+                if gap <= 0.15: gap_info = f"📈 **潛力躍升**：距離『熱區指標』僅差 {gap:.1%}。"
             elif level == "高效普及 (Efficiency Access)":
                 gap = (T_STD - final_sfs) / T_STD
-                if gap <= 0.1: gap_info = f"📈 **潛力躍升**：距離『社區標準』僅差 {gap:.1%}。"
+                if gap <= 0.15: gap_info = f"📈 **潛力躍升**：距離『社區標準』僅差 {gap:.1%}。"
 
             # 消費行為預判
             if spending_power < 6000 and density > 15:
@@ -135,3 +135,4 @@ if st.sidebar.button("啟動選址戰略診斷"):
         except Exception as e: st.error(f"❌ 診斷雜訊: {e}")
 
 st.caption("Produced by Marketing Designer. v3.7.1 Build 2026.")
+
