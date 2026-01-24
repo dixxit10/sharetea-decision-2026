@@ -47,7 +47,7 @@ if check_password():
         """, unsafe_allow_html=True)
 
     # --- 2. 名詞定義 (Definitions) ---
-    st.title("📚 名詞定義 v8.8.8")
+    st.title("📚 名詞定義 v8.9.8")
     st.markdown("<p style='color: #8B949E; font-size: 1.2em; margin-top: -15px;'>Reducing Noise. Increasing Clarity.</p>", unsafe_allow_html=True)
 
     st.markdown("<div class='formula-display'>", unsafe_allow_html=True)
@@ -62,8 +62,8 @@ if check_password():
         st.markdown("<div class='definition-box'><b>環境與地段基因</b><br>透過 Gemini 視覺掃描靜態地圖，識別鄰里質感與視覺雜訊 (如汽修廠、加油站)。</div>", unsafe_allow_html=True)
         st.markdown("<div class='definition-box'><b>月均基礎消費力</b><br>實時連動 CENSUS API。代表普查區月收入中位數，決定產品溢價空間。</div>", unsafe_allow_html=True)
     with def_col3:
-        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>訊號極限 (Signal-S): 15000+<br>社區標準 (C): 8500+<br>高效普及 (X): < 8500</div>", unsafe_allow_html=True)
-        st.markdown("<div class='definition-box'><b>顧客活動區 (200-460 sqft)</b><br>精確定義顧客使用範圍，排除工作區、吧台後方雜訊。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>品牌指標 (Model-M): 15000+<br>社區標準 (Community-C): 8500+<br>高效普及 (eXpress-X): < 8500</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>顧客活動區 (200-460 sqft)</b><br>精確定義顧客使用範圍，排除吧台後方雜訊。</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -74,14 +74,11 @@ if check_password():
 
     def get_census_full_profile(lat, lng, api_key):
         try:
-            # 1. 取得 FIPS 碼
             geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
             geo_res = requests.get(geo_url).json()
             fips = geo_res['results'][0]['block_fips']
             state, county, tract = fips[:2], fips[2:5], fips[5:11]
             
-            # 2. 聯動 Census API (精確抓取族裔 B03002 與 詳細年齡 B01001)
-            # 包含：華裔/東亞、東南亞、西裔、南亞、白人
             vars = "B19013_001E,B01001_001E,B03002_006E,B03002_004E,B03002_003E,B03002_012E,B03002_005E," + \
                    "B01001_007E,B01001_008E,B01001_009E,B01001_010E,B01001_031E,B01001_032E,B01001_033E,B01001_034E," + \
                    "B01001_011E,B01001_012E,B01001_035E,B01001_036E"
@@ -89,7 +86,6 @@ if check_password():
             census_url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{tract}&in=state:{state}%20county:{county}&key={api_key}"
             res = requests.get(census_url).json()
             d = res[1]
-            
             total_pop = int(d[1])
             income = int(d[0]) / 12
             
@@ -100,7 +96,6 @@ if check_password():
                 "東南亞裔": int(d[5]) / total_pop if total_pop > 0 else 0,
                 "南亞裔": int(d[6]) / total_pop if total_pop > 0 else 0
             }
-            
             age_18_24 = sum(int(x) for x in d[7:15])
             age_25_34 = sum(int(x) for x in d[15:19])
             
@@ -109,7 +104,6 @@ if check_password():
                 "25-34 歲 (社交主力)": age_25_34 / total_pop if total_pop > 0 else 0,
                 "35 歲以上 (穩定客群)": (total_pop - age_18_24 - age_25_34) / total_pop if total_pop > 0 else 0
             }
-            
             return income, eth, age_profile
         except: return None, None, None
 
@@ -123,7 +117,7 @@ if check_password():
     def get_vision_analysis(image_bytes, sfs_context, api_key):
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-3-flash-preview')
             img = Image.open(image_bytes)
             prompt = f"""
             依照營運、行銷、設計角度，請判讀地圖截圖中的『視覺雜訊』與『鄰里基因』。
@@ -161,22 +155,19 @@ if check_password():
                 parts = coord_input.split(',')
                 lat, lng = float(parts[0].strip()), float(parts[1].strip())
                 
-                with st.spinner("正在執行全維度數據核算與視覺基因掃描...請稍後"):
-                    # 1. 動態連線數據
+                with st.spinner("正在執行全維度數據核算與視覺基因掃描..."):
                     spending_power, dynamic_eth, dynamic_age = get_census_full_profile(lat, lng, CENSUS_KEY)
                     if spending_power is None:
-                        st.error("❌ 無法獲取該地段普查數據。請確認座標在美國境內且經度為負數。")
+                        st.error("❌ 無法獲取普查數據。")
                         st.stop()
                     
                     real_density = get_nearby_density(lat, lng, G_KEY)
-                    
-                    # 2. 戰略演算
                     target_index = (dynamic_eth.get("華裔/東亞裔", 0) * 2.5) + (dynamic_age.get("25-34 歲 (社交主力)", 0) * 3.0)
                     seat_mult = 1.5 if "13-20" in seat_choice else 1.2 if "6-12" in seat_choice else 1.0
                     env_factor = 1.25 if "Community" in loc_type else 1.1
                     
                     final_sfs = ((spending_power * target_index) * 7 * env_factor * seat_mult * pressure_coeff) / (math.pow(real_density + 1, 0.7))
-                    level = "訊號極限 (Signal-S)" if final_sfs >= 15000 else "社區標準 (C)" if final_sfs >= 8500 else "高效普及 (X)"
+                    level = "品牌指標 (Model-M)" if final_sfs >= 15000 else "社區標準 (Community-C)" if final_sfs >= 8500 else "高效普及 (eXpress-X)"
                     gap_pct = max(0, (15000 - final_sfs) / 15000)
 
                     # --- 渲染結果 ---
@@ -186,7 +177,7 @@ if check_password():
                         map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x450&scale=2&key={G_KEY}"
                         map_res = requests.get(map_url)
                         map_img_bytes = BytesIO(map_res.content)
-                        st.image(map_img_bytes, use_container_width=True, caption="📍 Retina Density Scan")
+                        st.image(map_img_bytes, use_container_width=True)
                     
                     with m2:
                         st.subheader("Key Strategic Metrics")
@@ -205,25 +196,35 @@ if check_password():
                         st.table(pd.DataFrame(dynamic_age.items(), columns=["年齡段", "比例"]).style.format({"比例":"{:.1%}"}))
                     
                     with d2:
-                        st.subheader("🧠 行為預判與戰略分析")
-                        behavior = "目的型社交消費" if final_sfs > 10000 else "便利驅動消費"
-                        if dynamic_age.get("25-34 歲 (社交主力)", 0) > 0.3:
-                            advice = "💎 核心建議：高社交主力區。重點在於『視覺降噪』與屏蔽外部機能雜訊，建立品牌綠洲。"
-                        elif dynamic_age.get("18-24 歲 (視覺打卡)", 0) > 0.3:
-                            advice = "📸 核心建議：打卡熱門區。強化 Miffy 聯名視覺張力與外部招牌清晰度。"
-                        else:
-                            advice = "🛵 核心建議：穩定客群區。優化動線效率與標準化機能家具配置。"
+                        st.subheader("🧠 全維度戰略定位分析")
+                        is_high_spending = spending_power > 7500
+                        social_peak = dynamic_age.get("25-34 歲 (社交主力)", 0)
+                        visual_peak = dynamic_age.get("18-24 歲 (視覺打卡)", 0)
                         
-                        st.write(f"當前模式：**{behavior}**")
-                        st.info(f"人均空間 {area_per_seat:.1f} sq. ft.。")
+                        # --- M/C/X 定位邏輯 ---
+                        if is_high_spending and social_peak > 0.3:
+                            store_type = "Model (M)"
+                            advice = "💎 **核心建議：** 高社交主力區。重點在於『視覺降噪 (VNC)』，建立品牌綠洲，屏蔽外部機能雜訊。"
+                        elif is_high_spending and visual_peak > 0.25:
+                            store_type = "Community (C)"
+                            advice = "📸 **核心建議：** 高打卡潛力區。應強化 Miffy 聯名裝置的張力，利用高對比設計吸引 18-24 歲族群。"
+                        else:
+                            store_type = "eXpress (X)"
+                            advice = "🛵 **核心建議：** 穩定客群區。建議配置標準化家具模組，優化動線效率，專注於高效周轉。"
+
+                        st.metric("建議店型定位", store_type)
+                        st.info(f"月均消費力: ${spending_power:,.0f} | 社交主力佔比: {social_peak:.1%}")
                         st.warning(advice)
+                        
+                        if store_type == "Model (M)":
+                            st.error("⚠️ 環境警示：偵測到潛在質感斷層，建議採用『全屏蔽式』模組設計以維持 Clarity。")
 
                     st.divider()
                     st.subheader("🤖 Gemini 視覺診斷與轉型建議")
                     with st.spinner("AI 正在分析地圖質感..."):
-                        sfs_ctx = f"SFS:{final_sfs:.0f}, Tier:{level}, Density:{real_density}, Age_Peak: 25-34"
+                        sfs_ctx = f"SFS:{final_sfs:.0f}, Tier:{level}, Density:{real_density}, Peak:{social_peak:.1%}"
                         st.markdown(get_vision_analysis(map_img_bytes, sfs_ctx, GEMINI_KEY))
 
             except Exception as e: st.error(f"分析異常: {e}")
 
-    st.caption("Produced by Marketing Designer. v8.8.8 | Reducing Noise. Increasing Clarity.")
+    st.caption("Produced by Marketing Designer. v8.9.8 | Reducing Noise. Increasing Clarity.")
