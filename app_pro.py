@@ -5,7 +5,7 @@ import pandas as pd
 # --- UI 介面配置 ---
 st.set_page_config(page_title="Sharetea Express 決策引擎 v3", layout="wide")
 
-# --- CSS (時尚深色版與標竿美學) ---
+# --- CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #FFFFFF; }
@@ -31,7 +31,7 @@ st.markdown("""
 
 st.title("🧋 Sharetea Express 決策引擎 v3")
 
-# --- 🎯 戰略名詞定義 (直接展開增加 Clarity) ---
+# --- 🎯 名詞定義 ---
 st.markdown("---")
 st.subheader("🎯 決策引擎名詞定義與權重邏輯")
 
@@ -40,9 +40,10 @@ with col_def1:
     st.markdown("""
     #### 📊 核心指標說明
     * **SFS (Strategic Fit Score)**：衡量地點與 **Sharetea** 品牌契合度，反映 **9.5 級標竿** 潛力。
-    * **購買力 (Spending Power)**：基於 Census 數據的月均收入，代表基礎消費動能。
-    * **競爭密度 (Density)**：2 英里內的同類店鋪數量，反映市場稀釋效應。
-    * **能見度 (Visibility)**：人員實際考察之店面曝光與人流綜合評分。
+    * **購買力**：基於 Census 數據的月均收入，代表基礎消費動能。
+    * **競爭密度**：2 英里內的同類店鋪數量，反映市場稀釋效應。
+    * **能見度**：人員實際考察之店面曝光與人流綜合評分。
+    * **預計座位數**：顧客活動範圍(排除廚房、櫃檯空間)。
     """)
 with col_def2:
     st.markdown("""
@@ -72,7 +73,7 @@ if not st.session_state["auth"]:
     st.stop()
 
 # --- 側邊欄：數據輸入 ---
-st.sidebar.header("📍 選址數據輸入 (僅限美國區域)")
+st.sidebar.header("📍 店面座標 (僅限美國區域)")
 coord_input = st.sidebar.text_input("貼上緯度, 經度 (Google Maps):", placeholder="33.8581, -118.0804")
 
 zoning_factor = st.sidebar.selectbox("🏗️ 地段權重 (Zoning)", 
@@ -171,3 +172,4 @@ if st.sidebar.button("啟動戰略診斷"):
             st.error(f"❌ 診斷中斷 (系統雜訊): {e}")
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
