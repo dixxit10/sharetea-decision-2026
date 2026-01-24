@@ -61,22 +61,33 @@ st.markdown("""
 
 st.title("🧋 Sharetea Express 決策引擎 v3")
 # --- 名詞定義 ---
-with st.expander("ℹ️ 查看決策引擎名詞定義與權重邏輯"):
-    st.markdown("""
-    ### 📊 核心指標說明
-    * **SFS (Strategic Fit Score) 戰略適配分**：衡量該地點與 **Sharetea** 品牌定位的契合度。分數越高（最高 10 分），代表該區域的獲利潛力越接近 **9.5 級標竿**。
-    * **Spending Power (購買力)**：基於 Census 數據的區域家庭年收入中位數，代表當地消費者的基礎購買能量。
-    * **Density (競爭密度)**：半徑 1.5 英里內的同類飲品店數量。密度越高，對獲利效率的稀釋效應越大。
+st.markdown("---")
+st.subheader("🎯 決策引擎名詞定義與權重邏輯")
 
-    ### ⚖️ 2026 戰略加權邏輯
-    為了最大化 **品牌擴張** 的競爭力，系統導入了以下權重：
-    * **Ethnic Weight (族裔權重)**：亞裔、西裔人口密集區加權 **1.5x**，反映品牌的核心客群偏好。
-    * **Age Weight (年齡權重)**：26-35 歲「社交活躍族群」加權 **2.5x**，這是支撐高毛利新品的主要力量。
+col_def1, col_def2 = st.columns(2)
+
+with col_def1:
+    st.markdown("""
+    #### 📊 核心指標說明
+    * **SFS (Strategic Fit Score) 戰略適配分**：衡量地點與 **Sharetea** 品牌定位的契合度，最高 10 分，反映 **9.5 級標竿** 潛力。
+    * **購買力**：區域家庭年收入中位數，代表當地基礎消費動能。
+    * **競爭密度**：1.5 英里內的同類店鋪數量，反映市場稀釋效應。
+    * **人員評分**：實際考察店面能見度、真實人流綜合評分。
+    * **預計座位數**：計算顧客活動空間 (扣除廚房、櫃檯後)。
     """)
-    
-    # 
-    st.latex(r'''SFS = \frac{\text{Spending Power} \times \text{Visibility} \times \text{Ethnic Weight} \times \text{Age Weight}}{\text{Density} + 1}''')
-st.markdown("<h5 style='color: #8B949E !important;'>內容根據Census 資料庫(人口普查、消費指數) 及 Google 資料庫(商店數量) 整理的綜合分析.</h5>", unsafe_allow_html=True)
+
+with col_def2:
+    st.markdown("""
+    #### ⚖️ 2026 戰略加權邏輯
+    為了最大化 **品牌擴張** 的競爭力，系統導入以下關鍵權重：
+    * **Ethnic Weight (族裔權重)**：亞裔、西裔密集區加權 **1.5x**，鎖定品牌核心客群。
+    * **Age Weight (年齡權重)**：26-35 歲社交活躍族群加權 **2.5x**，支撐高毛利新品。
+    """)
+
+# 公式
+st.markdown("#### 運算公式")
+st.latex(r'''SFS = \frac{\text{Spending Power} \times \text{Visibility} \times \text{Ethnic Weight} \times \text{Age Weight}}{\text{Density} + 1}''')
+
 st.divider()
 
 # --- 內部訪問權限 ---
@@ -144,7 +155,7 @@ if st.sidebar.button("啟動戰略診斷"):
                     asian_r, hispanic_r = eth_map["亞裔 (Asian)"], eth_map["西裔 (Hispanic)"]
                     age_r = sum(int(c[i]) for i in range(6, 10)) / total_pop
 
-            # --- 第四階段：SFS 運算 (LaTeX 呈現) ---
+            # --- 第四階段：SFS 運算 ---
             ethnic_weight = 1 + (asian_r * 1.5) + (hispanic_r * 1.0)
             age_weight = 1 + (age_r * 2.5)
             final_sfs = (spending_power * visibility * zoning_factor * ethnic_weight * age_weight) / (density + 1)
@@ -201,5 +212,6 @@ if st.sidebar.button("啟動戰略診斷"):
 # --- 腳註 ---
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
 
