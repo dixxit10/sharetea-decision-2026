@@ -54,11 +54,6 @@ def get_ai_diagnostic(context, key):
     1. 為什麼地理環境導致此評分？
     2. 若現況不符合目前評分標準，該如何改善或轉型？"""
     return model.generate_content(prompt).text
-        try:
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            return f"AI 診斷暫時無法生成，請檢查 API 權限或模型設置。(Error: {str(e)})"
 
 # --- 5. 核心診斷流程 ---
 if st.sidebar.button("啟動精英診斷"):
@@ -146,4 +141,5 @@ if st.sidebar.button("啟動精英診斷"):
             st.error(f"分析異常: {e}")
 
 st.caption("Marketing Designer Suite v6.5.1")
+
 
