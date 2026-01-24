@@ -98,8 +98,14 @@ if check_password():
             res = requests.get(url).json()
             results = res.get('results', [])
             
-            lifestyle_keywords = ['cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique', 'market', 'bakery']
-            noise_keywords = ['fast_food', 'car_repair', 'gas_station', 'car_wash', 'mechanic', 'liquor_store', 'convenience_store']
+            # --- 關鍵字 ---
+    lifestyle_keywords = ['cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique', 'market', 'bakery', 'book_store', 'florist', 'jewelry_store', 'clothing_store', 'museum', 'art_gallery',
+    'park', 'gym', 'pilates', 'wine_bar', 'bistro', 'department_store', 'dessert_shop', 'tea_house', 'home_goods_store']
+
+    noise_keywords = ['fast_food', 'car_repair', 'gas_station', 'car_wash', 'mechanic', 'liquor_store', 'convenience_store', 'auto_parts', 'tire_shop', 'check_cashing', 'pawn_shop', 
+    'laundromat', 'storage', 'vape_shop', 'tobacco_shop', 'money_transfer', 'discount_store', 'dollar_store', 'smog_check', 'body_shop']
+
+    name_noise_filters = ['pho', 'donut', 'burger', 'noodle', 'taco', 'express', 'takeout', 'drive_thru']
             
             l_count, n_count = 0, 0
             for p in results:
@@ -111,7 +117,7 @@ if check_password():
             
             # 戰略加乘判定
             if l_count > n_count + 1: return 1.15, "💎 精品地段基因", l_count, n_count
-            if n_count > l_count: return 0.8, "⚠️ 雜訊地段基因", l_count, n_count
+            if n_count > l_count: return 0.8, "⚠️ 功能地段基因", l_count, n_count
             return 1.0, "⚖️ 標準地段基因", l_count, n_count
         except: return 1.0, "❓ 偵測異常", 0, 0
 
@@ -205,3 +211,4 @@ if check_password():
             except Exception as e: st.error(f"分析異常: {e}")
 
     st.caption("Produced by Marketing Designer. v8.6.2 | Reducing Noise. Increasing Clarity.")
+
