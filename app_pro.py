@@ -92,30 +92,27 @@ if check_password():
             **👥 目標族群加權 (CENSUS)**
             * **東亞裔 (華/韓/日裔)**：加權 **3.0x**
             * **社交主力 (25-34 歲)**：加權 **2.5x**
-            * *反映對品類的高單價貢獻度與品牌忠誠。*
             """)
         with sc2:
             st.markdown("""
             **📐 物理環境補償 (ADA)**
             * **清晰級 (>35 sqft)**：加權 **1.2x**
             * **雜訊級 (<15 sqft)**：減權 **0.5x**
-            * *空間擁擠產生的物理噪音將直接扣除品牌溢價。*
             """)
         with sc3:
             st.markdown("""
             **🛰️ 競爭壓制係數 (GOOGLE)**
             * **競業密度半徑**：1.0km
             * **壓制模型**：$Density^{0.7}$
-            * *反映市場飽和後單店獲客成本的指數級上升。*
             """)
 
     col_def1, col_def2, col_def3 = st.columns(3)
     with col_def1:
-        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段獲利天花板。整合 CENSUS 消費力、目標客群密度與競爭壓力。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>整合 CENSUS 消費力、目標客群密度與競爭壓力。</div>", unsafe_allow_html=True)
     with col_def2:
-        st.markdown("<div class='definition-box'><b>空間體感質量 (ADA)</b><br>基於人均面積判定：過載、標準、清晰。直接決定品牌體驗的物理上限。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>空間體感質量 (ADA)</b><br>基於人均面積判定，直接決定品牌體驗的物理上限。</div>", unsafe_allow_html=True)
     with col_def3:
-        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。SFS 達標但空間過載者將強制轉向 X 型態。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。</div>", unsafe_allow_html=True)
 
     # --- 5. 執行分析 ---
     if st.sidebar.button("Execute Strategic Analysis"):
@@ -131,7 +128,7 @@ if check_password():
                     final_sfs = ((income * (target_index if target_index > 0 else 1.1)) * 7 * pressure_coeff) / (math.pow(density + 1, 0.7))
                     
                     if cust_area < 250:
-                        level, limit_msg = "高效普及 (eXpress-X)", f"⚠️ 空間狹窄 ({cust_area}sqft)：判定為 X 型態以確保轉換率。"
+                        level, limit_msg = "高效普及 (eXpress-X)", f"⚠️ 空間狹窄 ({cust_area}sqft)：判定為 X 型態。"
                     else:
                         level = "品牌指標 (Model-M)" if final_sfs >= 15000 else "社區標準 (Community-C)" if final_sfs >= 8500 else "高效普及 (eXpress-X)"
                         limit_msg = f"✅ 空間條件適宜 ({quality_status})。"
@@ -165,19 +162,21 @@ if check_password():
                         【2026 Sharetea Express 品牌風格包】：
                         1. 視覺核心：現代極簡、採用暖米白、磨砂玻璃、半透明紅色壓克力。
                         2. 設計哲學：視覺降噪 (Visual De-noising)。若環境雜訊高，優先全屏蔽設計。
-                        3. 社交定位：質感信號、融合聯名、藝術跨界，強調感官敘事而非速食感。
-                        4. 執行目標：維持模組化的精緻度與 Clarity 品牌基準。
+                        3. 社交定位：質感信號、融合藝術跨界，強調感官敘事而非速食感。
                         """
 
                         if "Model (M)" in level:
-                            dynamic_task = f"任務 (M-品牌模式)：如何在 SFS:{round(final_sfs)} 的地標地段，利用屏蔽設計排除雜訊，撐起品牌溢價？"
+                            dynamic_task = f"任務 (M-品牌模式)：如何在 SFS:{round(final_sfs)} 的地標地段利用屏蔽設計排除雜訊？"
                         elif "Community (C)" in level:
-                            dynamic_task = f"任務 (C-社交模式)：質感為 {quality_status}。如何結合聯名活動吸引鄰里客群進行高品質社交？"
+                            dynamic_task = f"任務 (C-社交模式)：質感為 {quality_status}。如何結合聯名活動吸引鄰里客群？"
                         else:
-                            dynamic_task = f"任務 (X-能效模式)：空間僅 {cust_area}sqft，如何在雜亂街道中建立強大視覺辨識度與轉換率？"
+                            dynamic_task = f"任務 (X-能效模式)：空間僅 {cust_area}sqft，如何建立視覺辨識度與轉換率？"
 
-                        prompt = f"你現在是 Sharetea 2026 戰略專家。請參考風格包：{brand_dna}\n根據數據診斷：{strategic_packet}\n{dynamic_task}\n針對【營運、行銷、設計】給予 2026 目標為準的簡易建議。"
+                        prompt = f"你現在是 Sharetea 2026 戰略專家。風格包：{brand_dna}\n數據包：{strategic_packet}\n{dynamic_task}\n建議維度：營運、行銷、設計。"
                         ai_res = model.generate_content([prompt, Image.open(map_bytes)])
                         st.markdown(ai_res.text)
 
-    st.caption("Produced by Marketing Designer. v10.1.0 | 數據加權與 2026 DNA 驅動。")
+            except Exception as e: 
+                st.error(f"分析異常: {e}")
+
+    st.caption("Produced by Marketing Designer. v10.1.1 | 數據加權與 2026 DNA 驅動。")
