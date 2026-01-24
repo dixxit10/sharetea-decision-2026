@@ -38,16 +38,33 @@ if check_password():
     cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
     seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"])
     
+    # 計算人均空間
     est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
     area_per_seat = cust_area / est_seats
-    pressure_coeff = 1.2 if area_per_seat >= 35 else 1.0 if area_per_seat >= 25 else 0.75 if area_per_seat >= 15 else 0.5
+    
+    # 空間壓力係數與【體感質量判定】
+    if area_per_seat >= 35:
+        pressure_coeff = 1.2
+        quality_status = "✨ 極致清晰"
+        q_color = "green"
+    elif area_per_seat >= 25:
+        pressure_coeff = 1.0
+        quality_status = "✅ 標準質感"
+        q_color = "blue"
+    elif area_per_seat >= 15:
+        pressure_coeff = 0.75
+        quality_status = "⚠️ 體驗過載"
+        q_color = "orange"
+    else:
+        pressure_coeff = 0.5
+        quality_status = "🚨 嚴重雜訊"
+        q_color = "red"
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("📐 物理診斷報告")
     st.sidebar.write(f"人均空間: **{area_per_seat:.1f} sq. ft.**")
-    
-    physical_limit = "eXpress (X) 優先" if cust_area < 250 else "Community (C) 潛力" if cust_area < 450 else "Model (M) 潛力"
-    st.sidebar.info(f"物理空間建議：{physical_limit}")
+    st.sidebar.markdown(f"物理空間建議：<span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
+    st.sidebar.caption(f"壓力補償係數: {pressure_coeff}")
 
     # --- 3. API 核心定義 ---
     G_KEY = st.secrets.get("GOOGLE_KEY")
@@ -77,11 +94,11 @@ if check_password():
     
     col_def1, col_def2, col_def3 = st.columns(3)
     with col_def1:
-        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段獲利天花板指標。整合消費力、族群權重與物理空間壓力。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段獲利天花板指標。整合消費力、族群權重與空間壓力補償。</div>", unsafe_allow_html=True)
     with col_def2:
-        st.markdown("<div class='definition-box'><b>空間壓力係數</b><br>基於人均面積判定。15sqft以下(0.5)視為極度擁擠，會大幅拉低SFS。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>空間體感質量</b><br>基於人均面積判定：過載、標準、清晰。直接決定品牌體驗的物理上限。</div>", unsafe_allow_html=True)
     with col_def3:
-        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。受空間物理大小強制限制。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。SFS 達標但空間過載者將強制標註建議轉向 X 型態。</div>", unsafe_allow_html=True)
 
     # --- 5. 執行分析 ---
     if st.sidebar.button("Execute Strategic Analysis"):
@@ -93,26 +110,24 @@ if check_password():
             try:
                 lat, lng = [float(x.strip()) for x in coord_input.split(',')]
                 with st.spinner("🚀 數據同步與空間基因診斷中..."):
-                    # 數據採集
                     income, pop, eth, age = get_census_data(lat, lng)
                     density = get_density(lat, lng)
                     
-                    # 運算
                     target_index = (eth.get("東亞裔", 0) * 3.0) + (age.get("25-34", 0) * 2.5)
                     final_sfs = ((income * (target_index if target_index > 0 else 1.1)) * 7 * pressure_coeff) / (math.pow(density + 1, 0.7))
                     
+                    # 最終分級判定 (結合 SFS 與物理限制)
                     if cust_area < 250:
                         level = "高效普及 (eXpress-X)"
-                        limit_msg = "⚠️ 空間物理限制：空間不足 250sqft，強制判定為 X 店型以確保營運效率。"
+                        limit_msg = f"⚠️ 空間狹窄 ({cust_area}sqft)：物理條件限制品牌體驗，建議以此區域之 X 店型營運。"
                     else:
                         level = "品牌指標 (Model-M)" if final_sfs >= 15000 else "社區標準 (Community-C)" if final_sfs >= 8500 else "高效普及 (eXpress-X)"
-                        limit_msg = "✅ 空間充足：店型定位與 SFS 指數對齊。"
+                        limit_msg = f"✅ 空間條件適宜：店型定位與 SFS 指數對齊 ({quality_status})。"
 
-                    # 渲染結果
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("SFS 戰略總分", f"{final_sfs:.0f}")
                     m2.metric("位置分級", level)
-                    m3.metric("空間壓力係數", f"{pressure_coeff}")
+                    m3.metric("空間補償係數", f"{pressure_coeff}")
                     m4.metric("周邊競業數", f"{density} 家")
                     st.warning(limit_msg)
 
@@ -121,17 +136,16 @@ if check_password():
                     strategic_packet = {
                         "SFS總分": round(final_sfs),
                         "位置分級": level,
+                        "體感質量": quality_status,
                         "月收入(中位)": f"${income:,.0f}",
                         "族裔結構": eth,
                         "年齡組成": age,
                         "物理面積": f"{cust_area} sqft",
-                        "預計座位": est_seats,
                         "人均面積": f"{area_per_seat:.1f} sqft",
                         "壓力係數": pressure_coeff,
                         "競爭密度": f"{density} 家/km"
                     }
 
-                    # --- 地圖與 AI 解析區塊 ---
                     col_map, col_ai = st.columns([1, 1])
                     with col_map:
                         map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x640&scale=2&markers=color:red%7C{lat},{lng}&key={G_KEY}"
@@ -144,42 +158,39 @@ if check_password():
                         genai.configure(api_key=GEMINI_KEY)
                         model = genai.GenerativeModel('gemini-3-flash-preview')
 
+                        # 動態任務分派
                         if "Model (M)" in level:
                             dynamic_task = f"""
                             任務 (Model-M 指標店模式)：
-                            1. 【空間基因】：評估物理空間({cust_area}sqft)如何撐起『品牌溢價』？地圖中的雜訊是否損害質感？
-                            2. 【設計策略】：如何運用『全屏蔽設計』或特定材質，在 SFS:{round(final_sfs)} 的高價值地段創造純淨的品牌綠洲？
-                            3. 【營運與行銷】：如何針對高收入族群({strategic_packet['月收入(中位)']})設計『預約制』或『限量體驗』？
+                            1. 【空間基因】：目前物理質量為 {quality_status}。評估如何利用這份空間感撐起品牌溢價？
+                            2. 【設計策略】：如何處理地圖中周邊的雜訊，在 SFS:{round(final_sfs)} 的高價值地段創造純淨的品牌綠洲？
+                            3. 【營運建議】：針對高收入族群設計精緻化服務流程。
                             """
                         elif "Community (C)" in level:
                             dynamic_task = f"""
                             任務 (Community-C 社區店模式)：
-                            1. 【社交診斷】：評估 {cust_area}sqft 是否足以容納社區社交？地圖周邊是否有適合聯名行銷的鄰里基因？
-                            2. 【行銷策略】：針對族群比例 {eth}，如何利用 Miffy 或特定聯名活動創造高回購率與打卡動力？
-                            3. 【設計與營運】：如何平衡『座位舒適度』與『高峰出杯效率』，以維持 SFS 穩定增長？
+                            1. 【社交診斷】：體感質量為 {quality_status}。評估空間是否足以支持長期停留與社交回購？
+                            2. 【行銷策略】：針對族群比例 {eth}，如何利用聯名活動創造打卡動力？
+                            3. 【設計建議】：如何平衡座位舒適度與視覺張力。
                             """
-                        else: # eXpress (X)
+                        else:
                             dynamic_task = f"""
                             任務 (eXpress-X 機能店模式)：
-                            1. 【效能極大化】：空間僅有 {cust_area}sqft，如何利用『極簡模組』掩蓋擁擠感({pressure_coeff})並提升轉換率？
-                            2. 【營運策略】：針對高峰轉換率，如何設計『外送/自取雙動線』以克服空間狹小的物理限制？
-                            3. 【設計策略】：如何處理地圖中常見的『街道噪音』，並透過視覺設計提升店鋪在繁忙區域的識別度？
+                            1. 【效能極大化】：空間判定為 {quality_status}。如何利用極簡模組掩蓋擁擠感並提升轉換率？
+                            2. 【營運策略】：針對高峰轉換率，設計外送/自取雙動線。
+                            3. 【視覺策略】：在繁忙街道中提升識別度，降低環境噪音干擾。
                             """
 
                         prompt = f"""
-                        你現在是 Sharetea 2026 戰略專家。請根據以下「對齊數據包」與「地圖截圖」進行專屬診斷：
-                        
-                        【數據包內容】：{strategic_packet}
-                        
+                        你現在是 Sharetea 2026 戰略專家。請根據以下「數據包」與「地圖截圖」進行診斷：
+                        【數據包】：{strategic_packet}
                         {dynamic_task}
-                        
                         請針對【營運】、【行銷】、【設計】三個維度，給予簡易且精準的執行建議。
                         """
-                        
                         ai_res = model.generate_content([prompt, Image.open(map_bytes)])
                         st.markdown(ai_res.text)
 
             except Exception as e: 
                 st.error(f"分析異常: {e}")
 
-    st.caption("Produced by Marketing Designer. v9.9.8 | 物理決定論與 API 對齊模式。")
+    st.caption("Produced by Marketing Designer. v10.0.1 | 空間質量與戰略分級對齊模式。")
