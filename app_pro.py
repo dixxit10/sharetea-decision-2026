@@ -87,9 +87,8 @@ zoning_factor = st.sidebar.selectbox("🏗️ 地段權重 (Zoning)",
 visibility = st.sidebar.slider("👁️ 微觀視角評分 (1-10):", 1, 10, 7)
 seat_grade = st.sidebar.radio("🪑 預計座位數等級:", [1, 2, 3], index=1, help="1:<5, 2:6-20, 3:21-30")
 
-# --- 🔑 核心金鑰 ---
-CENSUS_KEY = "5c33844e46a08e91f4443f90cec9e0be54385445"
-GOOGLE_KEY = "AIzaSyC0csc62G77iAft21CIKkrPP8PD8XzVVYI"
+CENSUS_KEY = st.secrets["CENSUS_KEY"]
+GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
 
 if st.sidebar.button("啟動 9.5 級戰略診斷"):
     if not coord_input:
@@ -184,4 +183,5 @@ if st.sidebar.button("啟動 9.5 級戰略診斷"):
             st.error(f"❌ 診斷中斷 (系統雜訊): {e}")
 
 # --- 🛠️ 底部腳註 ---
+
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
