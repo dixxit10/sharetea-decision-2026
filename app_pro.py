@@ -49,7 +49,7 @@ def get_ai_diagnostic(context, api_key):
     try:
         genai.configure(api_key=api_key.strip())
         # 更新模型名稱為 gemini-2.5-pro
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3-flash-preview')
         
         prompt = f"""
         身為 Marketing Designer 戰略顧問，針對以下選址數據執行任務：
@@ -118,5 +118,6 @@ if st.sidebar.button("執行 2026 精英診斷"):
             st.error(f"分析異常: {e}")
 
 st.caption("Produced by Marketing Designer. v7.1.0 | Reducing Noise. Increasing Clarity.")
+
 
 
