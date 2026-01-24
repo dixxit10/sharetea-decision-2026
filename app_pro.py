@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import math
 
-# --- 1. UI 與 品牌美學配置 ---
+# --- 1. UI 介面與品牌美學配置 ---
 st.set_page_config(page_title="Sharetea 2026 Strategy Suite", layout="wide")
 st.markdown("""
     <style>
@@ -25,20 +25,20 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 名詞定義 (展開設計：無收合) ---
-st.title("🧋 Sharetea Express 決策引擎 v4.9")
+st.title("Sharetea Express 決策引擎 v5.0")
 st.markdown("<h5 style='color: #8B949E; margin-bottom: 25px;'>Reducing Noise. Increasing Clarity.</h5>", unsafe_allow_html=True)
 
-st.subheader("📚 戰略名詞定義 (Strategic Definitions)")
+st.subheader("📚 戰略體系名詞定義 (Strategic Definitions)")
 def_c1, def_c2, def_c3 = st.columns(3)
 with def_c1:
-    st.markdown("<div class='definition-box'><b>● SFS 戰略總分</b><br>綜合 27 組演算 (座位x區域x行為) 的適配得分，反映 9.5 級獲利潛力。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='definition-box'><b>● SFS 戰略總分</b><br>綜合 27 組演算 (座位x區域x行為) 的得分，反映 9.5 級獲利潛力。</div>", unsafe_allow_html=True)
     st.markdown("<div class='definition-box' style='border-left-color: #D29922;'><b>● 熱區指標 (Hotspot)</b><br>具備高昂美學溢價、高坪效與社交影響力的旗艦級地段。</div>", unsafe_allow_html=True)
 with def_c2:
     st.markdown("<div class='definition-box' style='border-left-color: #1F6FEB;'><b>● 社區標準 (Community)</b><br>平衡品質、便利與生活態度的日常型消費核心。</div>", unsafe_allow_html=True)
     st.markdown("<div class='definition-box' style='border-left-color: #8B949E;'><b>● 高效普及 (Efficiency)</b><br>強調垂直供應鏈效率與快速通路的擴張型選址。</div>", unsafe_allow_html=True)
 with def_c3:
-    st.markdown("<div class='definition-box' style='border-left-color: #FF4B4B;'><b>● 競業密度 ($Density^{0.7}$)</b><br>非線性衰減運算，識別都會區流量紅利。</div>", unsafe_allow_html=True)
-    st.markdown("<div class='definition-box' style='border-left-color: #00D166;'><b>● 月均基礎消費力</b><br>基於普查區家庭年收入/12，決定選址獲利天花板。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='definition-box' style='border-left-color: #FF4B4B;'><b>● 競業密度 ($Density^{0.7}$)</b><br>非線性衰減運算，將競爭壓力轉化為流量驗證紅利。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='definition-box' style='border-left-color: #00D166;'><b>● 月均基礎消費力</b><br>基於普查區家庭年收入/12，決定該區域獲利天花板。</div>", unsafe_allow_html=True)
 
 st.divider()
 
@@ -46,7 +46,7 @@ st.divider()
 if "auth" not in st.session_state: st.session_state["auth"] = False
 if not st.session_state["auth"]:
     pwd = st.text_input("🔑 輸入 2026 戰略代碼:", type="password")
-    if st.button("驗證權限"):
+    if st.button("啟動選址診斷系統"):
         if pwd == st.secrets["APP_PASSWORD"]: st.session_state["auth"] = True; st.rerun()
         else: st.error("驗證失敗。")
     st.stop()
@@ -60,24 +60,24 @@ seat_mult = {"高效型": 1.0, "標準型": 1.2, "旗艦型": 1.5}[st.sidebar.ra
 C_KEY, G_KEY = st.secrets["CENSUS_KEY"], st.secrets["GOOGLE_KEY"]
 
 # --- 4. 精英診斷引擎 ---
-if st.sidebar.button("啟動選址診斷"):
-    if not coord_input: st.warning("請先提供座標。")
+if st.sidebar.button("啟動戰略診斷"):
+    if not coord_input: st.warning("請先提供座標數據。")
     else:
         try:
             parts = coord_input.split(','); lat, lng = float(parts[0].strip()), float(parts[1].strip())
             with st.spinner("✨ 正在同步 27 組演算數據..."):
-                # [此處保留 API 調用邏輯：Google Places & Census API]
+                # [API 調用邏輯：Google Places & Census API]
                 density, spending_power = 12, 8200 # 示例數據
                 eth_dict = {"華裔/台灣裔": 0.35, "墨西哥裔/西裔": 0.25, "東南亞裔": 0.15, "東亞裔": 0.1, "南亞裔": 0.05, "白人": 0.1}
-                seg_v, seg_s = 0.15, 0.25
-                seg_q = 1 - (seg_v + seg_s)
+                seg_v, seg_s = 0.15, 0.25 # Segment V (18-24), Segment S (25-34)
+                seg_q = 1 - (seg_v + seg_s) # Segment Q (35+)
                 age_dict = {"18-24 歲 (視覺驅動)": seg_v, "25-34 歲 (社交主力)": seg_s, "35 歲以上 (品質穩定)": seg_q}
 
             # SFS 演算
             target_index = (eth_dict["華裔/台灣裔"] * 2.0) + (eth_dict["墨西哥裔/西裔"] * 1.5) + (seg_s * 2.5)
             final_sfs = ((spending_power * 0.5 + spending_power * target_index * 0.5) * visibility * zoning_factor * seat_mult) / (math.pow(density, 0.7) + 1)
 
-            # 戰略分級與門檻 (15% 彈性)
+            # 門檻定義 (15% 彈性)
             T_A, T_B, T_C = 15000, 8500, 4500
             if final_sfs >= T_A: level, color = "熱區指標 (A+)", "gold"
             elif final_sfs >= T_B: level, color = "社區標準 (B)", "orange"
@@ -93,16 +93,13 @@ if st.sidebar.button("啟動選址診斷"):
             m2.metric("位置分級落點", level.split(' ')[0])
             m3.metric("月基礎消費力", f"${spending_power:,.0f}")
             m4.metric("周邊競業數", f"{density} 家")
-            m5.metric("消費動能評級", "標竿級" if spending_power > 7500 else "普及級")
+            m5.metric("分級差距分析", f"{gap_to_a:.1%}" if level.startswith("社區") else f"{gap_to_b:.1%}")
 
             st.divider()
             l_col, r_col = st.columns(2)
             
             with l_col:
-                st.markdown(f"### 🎯 戰略差距分析 (門檻: {T_A}/{T_B}/{T_C})")
-                st.write(f"📍 距離下一級門檻差距：{gap_to_a:.1%}" if level.startswith("社區") else f"📍 距離下一級門檻差距：{gap_to_b:.1%}")
-                
-                # --- 核心 IF/THEN 執行清單 ---
+                # --- 核心 IF/THEN 執行清單邏輯 ---
                 curr_goal, curr_adv = "戰略診斷中", "穩定現有品質。"
                 next_adv = "強力建議維持現況，轉型可透過小規模增加品牌力依照營業額再重新診斷評估。"
 
@@ -111,8 +108,9 @@ if st.sidebar.button("啟動選址診斷"):
                     if seg_q > 0.60:
                         curr_goal, curr_adv = "Maintain_Benchmark (維持標竿)", "優化『低糖/少冰』與『高品質原葉茶』配方。強化供應鏈效率，針對穩定客群建立『高品質日常飲』的護城河。"
                     elif seg_s > 0.15 or gap_to_b < 0.15:
-                        curr_goal, curr_adv = "Pivot_to_B (轉型路徑)", "啟動『品牌力介入』計畫。局部店裝升級以提升質感，利用 25-34 歲族群的社交影響力，將價格敏感度轉化為品牌黏性。"
-                    # 轉型下一層：C 建議 B
+                        curr_goal, curr_adv = "Pivot_to_B (轉型路徑)", "啟動『品牌力介入』計畫。局部店裝升級以提升質感，利用 25-34 歲族群社交影響力，將價格敏感度轉化為品牌黏性。"
+                    
+                    # 轉型下一層路徑 (C -> B)
                     if seg_s > 0.15 or gap_to_b < 0.15:
                         next_adv = "🚀 **建議由『高效普及 (C)』轉型為『社區標準 (B)』**：利用核心社交族群的品牌溢價意願進行店裝升級與質感提升。"
 
@@ -122,24 +120,25 @@ if st.sidebar.button("啟動選址診斷"):
                         curr_goal, curr_adv = "Social_Premium (社交溢價)", "強化空間體驗與限定產品。針對社交主力推出『原葉精品系列』，增加店內視覺記憶點，鞏固社區標準地位。"
                     elif gap_to_a < 0.10:
                         curr_goal, curr_adv = "Target_Flagship (對標旗艦)", "導入『旗艦級視覺元素』(如：Miffy 聯名)。針對 18-24 歲族群進行話題性行銷，提升指標性。"
-                    # 轉型下一層：B 建議 C
+                    
+                    # 轉型下一層路徑 (B -> C)
                     if spending_power < 6500 or density > 15:
                         next_adv = "🚀 **建議由『社區標準 (B)』轉向『高效普及 (C)』**：環境競爭過熱或購買力受限。建議強化『垂直供應鏈』優勢，轉向快速消費模式。"
 
                 st.success(f"### 📋 當前執行清單：{curr_goal}\n\n{curr_adv}")
                 st.info(f"### 🧬 轉型的下一層路徑建議\n\n{next_adv}")
 
-                # 消費行為與預判
-                behavior = "社交美學導向" if (seg_s + seg_v) > 0.28 else "品質穩定導向"
-                st.markdown(f"**💡 消費行為預判：** 該地段目前呈現 **{behavior}** 與 **快速消費** 特徵。")
+                # 消費行為預判
+                behavior = "快速消費與價格導向" if spending_power < 6000 else "品牌溢價導向"
+                st.markdown(f"**💡 消費行為預判：** 該地段目前呈現 **{behavior}** 特徵。")
 
             with r_col:
-                st.markdown("### 🎂 年齡組成細分 (由高至低排列)")
+                st.markdown("### 🎂 年齡組成細分 (依比例排序)")
                 st.table(pd.DataFrame(sorted(age_dict.items(), key=lambda x:x[1], reverse=True), columns=["年齡層", "比例"]).style.format({"比例": "{:.1%}"}))
                 
-                st.markdown("### 👥 族裔組成細分 (由高至低排列)")
+                st.markdown("### 👥 族裔組成細分 (依比例排序)")
                 st.table(pd.DataFrame(sorted(eth_dict.items(), key=lambda x:x[1], reverse=True), columns=["族群", "比例"]).style.format({"比例": "{:.1%}"}))
 
         except Exception as e: st.error(f"分析異常: {e}")
 
-st.caption("Produced by Marketing Designer. v4.9.1 Build 2026.")
+st.caption("Produced by Marketing Designer. v5.0.1 Build 2026.")
