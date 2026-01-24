@@ -28,10 +28,10 @@ def check_password():
         return True
 
 if check_password():
-# --- 1. UI & CSS 配置 ---
-st.set_page_config(page_title="Sharetea Express 2026 全方位評估", layout="wide")
-st.markdown("""
-    <style>
+    # --- 1. UI & CSS 配置 ---
+    st.set_page_config(page_title="Sharetea Express 2026 全方位評估", layout="wide")
+    st.markdown("""
+        <style>
     .stApp { background-color: #0E1117; color: #E6EDF3; font-family: 'Inter', sans-serif; }
     .definition-box { 
         background-color: #1C2128; border-left: 3px solid #238636; 
@@ -178,4 +178,5 @@ if st.sidebar.button("Execute Strategic Analysis"):
         except Exception as e: st.error(f"Analysis Exception: {e}")
 
 st.caption("Produced by Marketing Designer. v8.4.0 | Reducing Noise. Increasing Clarity.")
+
 
