@@ -28,6 +28,7 @@ if check_password():
         .stApp { background-color: #0E1117; color: #E6EDF3; }
         .definition-box { background-color: #1C2128; border-left: 3px solid #238636; padding: 15px; margin-bottom: 10px; border-radius: 4px; font-size: 0.85em; }
         div[data-testid="metric-container"] { background-color: #1C2128; border: 1px solid #30363D; padding: 15px; border-radius: 8px; }
+        .formula-card { background-color: #0D1117; padding: 20px; border-radius: 8px; border: 1px solid #30363D; text-align: center; margin-bottom: 20px; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -38,27 +39,17 @@ if check_password():
     cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
     seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"])
     
-    # 計算人均空間
     est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
     area_per_seat = cust_area / est_seats
     
-    # 空間壓力係數與【體感質量判定】 (基於 ADA 舒適度基準調整)
     if area_per_seat >= 35:
-        pressure_coeff = 1.2
-        quality_status = "✨ 極致清晰"
-        q_color = "green"
+        pressure_coeff, quality_status, q_color = 1.2, "✨ 極致清晰", "green"
     elif area_per_seat >= 25:
-        pressure_coeff = 1.0
-        quality_status = "✅ 標準質感"
-        q_color = "blue"
+        pressure_coeff, quality_status, q_color = 1.0, "✅ 標準質感", "blue"
     elif area_per_seat >= 15:
-        pressure_coeff = 0.75
-        quality_status = "⚠️ 體驗過載"
-        q_color = "orange"
+        pressure_coeff, quality_status, q_color = 0.75, "⚠️ 體驗過載", "orange"
     else:
-        pressure_coeff = 0.5
-        quality_status = "🚨 嚴重雜訊"
-        q_color = "red"
+        pressure_coeff, quality_status, q_color = 0.5, "🚨 嚴重雜訊", "red"
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("📐 物理診斷報告")
@@ -88,45 +79,63 @@ if check_password():
             return len(requests.get(url).json().get('results', []))
         except: return 5
 
-    # --- 4. 戰略看板 (前端數據卡片) ---
+    # --- 4. 戰略看板與加權概述 ---
     st.title("📚 Sharetea 2026 戰略指標體系")
+    st.markdown("<div class='formula-card'>", unsafe_allow_html=True)
     st.latex(r"SFS = \frac{(Income \times TargetIndex) \times 7 \times PressureCoeff}{Density^{0.7} + 1}")
-    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    with st.expander("📊 SFS 戰略加權核算與算法概述", expanded=True):
+        sc1, sc2, sc3 = st.columns(3)
+        with sc1:
+            st.markdown("""
+            **👥 目標族群加權 (CENSUS)**
+            * **東亞裔 (華/韓/日裔)**：加權 **3.0x**
+            * **社交主力 (25-34 歲)**：加權 **2.5x**
+            * *反映對品類的高單價貢獻度與品牌忠誠。*
+            """)
+        with sc2:
+            st.markdown("""
+            **📐 物理環境補償 (ADA)**
+            * **清晰級 (>35 sqft)**：加權 **1.2x**
+            * **雜訊級 (<15 sqft)**：減權 **0.5x**
+            * *空間擁擠產生的物理噪音將直接扣除品牌溢價。*
+            """)
+        with sc3:
+            st.markdown("""
+            **🛰️ 競爭壓制係數 (GOOGLE)**
+            * **競業密度半徑**：1.0km
+            * **壓制模型**：$Density^{0.7}$
+            * *反映市場飽和後單店獲客成本的指數級上升。*
+            """)
+
     col_def1, col_def2, col_def3 = st.columns(3)
     with col_def1:
-        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>整合 CENSUS 消費力、目標客群權重與 Google API 競爭壓力之獲利潛力分。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段獲利天花板。整合 CENSUS 消費力、目標客群密度與競爭壓力。</div>", unsafe_allow_html=True)
     with col_def2:
-        st.markdown("<div class='definition-box'><b>空間壓力係數 (ADA)</b><br>基於 ADA 人均面積標準判定。低於 15sqft 視為嚴重雜訊，將大幅拉低品牌溢價。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>空間體感質量 (ADA)</b><br>基於人均面積判定：過載、標準、清晰。直接決定品牌體驗的物理上限。</div>", unsafe_allow_html=True)
     with col_def3:
-        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。由硬數據驅動，結合 Gemini 3 視覺基因診斷。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。SFS 達標但空間過載者將強制轉向 X 型態。</div>", unsafe_allow_html=True)
 
     # --- 5. 執行分析 ---
     if st.sidebar.button("Execute Strategic Analysis"):
-        if not coord_input: 
-            st.error("❌ 請提供座標")
-        elif not GEMINI_KEY:
-            st.error("❌ 找不到 GEMINI_KEY，請檢查 Secrets。")
+        if not coord_input: st.error("❌ 請提供座標")
+        elif not GEMINI_KEY: st.error("❌ 找不到 GEMINI_KEY")
         else:
             try:
                 lat, lng = [float(x.strip()) for x in coord_input.split(',')]
                 with st.spinner("🚀 跨 API 數據採集與 2026 DNA 診斷中..."):
-                    # 數據採集
                     income, pop, eth, age = get_census_data(lat, lng)
                     density = get_density(lat, lng)
-                    
-                    # SFS 戰略運算
                     target_index = (eth.get("東亞裔", 0) * 3.0) + (age.get("25-34", 0) * 2.5)
                     final_sfs = ((income * (target_index if target_index > 0 else 1.1)) * 7 * pressure_coeff) / (math.pow(density + 1, 0.7))
                     
-                    # 對齊分級
                     if cust_area < 250:
-                        level = "高效普及 (eXpress-X)"
-                        limit_msg = f"⚠️ 物理限制：空間僅 {cust_area}sqft，由硬性空間門檻判定為 X 型態。"
+                        level, limit_msg = "高效普及 (eXpress-X)", f"⚠️ 空間狹窄 ({cust_area}sqft)：判定為 X 型態以確保轉換率。"
                     else:
                         level = "品牌指標 (Model-M)" if final_sfs >= 15000 else "社區標準 (Community-C)" if final_sfs >= 8500 else "高效普及 (eXpress-X)"
-                        limit_msg = f"✅ 物理適宜：空間符合預設店型規模 ({quality_status})。"
+                        limit_msg = f"✅ 空間條件適宜 ({quality_status})。"
 
-                    # --- 前端數據卡片展示 ---
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("SFS 戰略總分", f"{final_sfs:.0f}")
                     m2.metric("位置分級 (Level)", level)
@@ -135,62 +144,40 @@ if check_password():
                     st.warning(limit_msg)
 
                     st.divider()
-                    
                     strategic_packet = {
-                        "SFS總分": round(final_sfs),
-                        "位置分級": level,
-                        "體感質量": quality_status,
-                        "月收入(中位)": f"${income:,.0f}",
-                        "族裔結構": eth,
-                        "年齡組成": age,
-                        "物理面積": f"{cust_area} sqft",
-                        "壓力係數(ADA)": pressure_coeff,
-                        "競爭密度(Google)": f"{density} 家/km"
+                        "SFS總分": round(final_sfs), "位置分級": level, "體感質量": quality_status,
+                        "月收入": f"${income:,.0f}", "族裔結構": eth, "年齡組成": age,
+                        "物理面積": f"{cust_area} sqft", "壓力係數(ADA)": pressure_coeff, "競爭密度": f"{density} 家/km"
                     }
 
-                    # --- 地圖與 Gemini 3 解析 ---
                     col_map, col_ai = st.columns([1, 1])
                     with col_map:
                         map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x640&scale=2&markers=color:red%7C{lat},{lng}&key={G_KEY}"
                         map_bytes = BytesIO(requests.get(map_url).content)
-                        st.image(map_bytes, use_container_width=True, caption="📍 戰略座標 Retina 掃描")
+                        st.image(map_bytes, use_container_width=True, caption="📍 Retina 戰略掃描")
                     
                     with col_ai:
                         st.subheader("🤖 Gemini 3 Flash 全維度戰略判讀")
                         genai.configure(api_key=GEMINI_KEY)
                         model = genai.GenerativeModel('gemini-3-flash-preview')
 
-                        # --- 核心新增：2026 品牌風格包 (Brand DNA) ---
                         brand_dna = """
                         【2026 Sharetea Express 品牌風格包】：
-                        1. 視覺核心：現代極簡、大量採用暖米白、磨砂、半透明紅色壓克力。
-                        2. 設計哲學：視覺溫和、清晰。若環境複雜，優先考慮全屏蔽設計，打造隔離干擾的「品牌安全感」。
-                        3. 社交定位：生活質感信號，融合藝術跨界，強調觸感、聽覺、感官敘事而非傳統速食感。
-                        4. 執行目標：即使是 eXpress 店型，也需維持模組化的精緻度與清晰的品牌視覺基準。
+                        1. 視覺核心：現代極簡、採用暖米白、磨砂玻璃、半透明紅色壓克力。
+                        2. 設計哲學：視覺降噪 (Visual De-noising)。若環境雜訊高，優先全屏蔽設計。
+                        3. 社交定位：質感信號、融合聯名、藝術跨界，強調感官敘事而非速食感。
+                        4. 執行目標：維持模組化的精緻度與 Clarity 品牌基準。
                         """
 
                         if "Model (M)" in level:
-                            dynamic_task = f"任務 (M-品牌模式)：如何在 SFS:{round(final_sfs)} 的地標級地段，利用屏蔽設計排除地圖中的視覺雜訊，撐起極致品牌溢價？"
+                            dynamic_task = f"任務 (M-品牌模式)：如何在 SFS:{round(final_sfs)} 的地標地段，利用屏蔽設計排除雜訊，撐起品牌溢價？"
                         elif "Community (C)" in level:
-                            dynamic_task = f"任務 (C-社交模式)：體感質量為 {quality_status}。如何結合聯名和網路活動吸引長期穩定的鄰里客群進行社交？"
+                            dynamic_task = f"任務 (C-社交模式)：質感為 {quality_status}。如何結合聯名活動吸引鄰里客群進行高品質社交？"
                         else:
-                            dynamic_task = f"任務 (X-能效模式)：空間僅 {cust_area}sqft，如何利用在雜亂街道中建立強大的視覺辨識度與出杯轉換率？"
+                            dynamic_task = f"任務 (X-能效模式)：空間僅 {cust_area}sqft，如何在雜亂街道中建立強大視覺辨識度與轉換率？"
 
-                        prompt = f"""
-                        你現在是 Sharetea 2026 戰略專家。請參考品牌風格包：
-                        {brand_dna}
-                        
-                        根據以下數據包與地圖診斷：
-                        【數據包】：{strategic_packet}
-                        
-                        {dynamic_task}
-                        
-                        請針對【營運】、【行銷】、【設計】三個維度，給予符合 2026 任務目標為準的簡易建議。
-                        """
+                        prompt = f"你現在是 Sharetea 2026 戰略專家。請參考風格包：{brand_dna}\n根據數據診斷：{strategic_packet}\n{dynamic_task}\n針對【營運、行銷、設計】給予 2026 目標為準的簡易建議。"
                         ai_res = model.generate_content([prompt, Image.open(map_bytes)])
                         st.markdown(ai_res.text)
 
-            except Exception as e: 
-                st.error(f"分析異常: {e}")
-
-    st.caption("Produced by Marketing Designer. v10.0.1 | 數據對齊與 2026 品牌 DNA 驅動。")
+    st.caption("Produced by Marketing Designer. v10.1.0 | 數據加權與 2026 DNA 驅動。")
