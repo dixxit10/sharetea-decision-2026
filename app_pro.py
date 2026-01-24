@@ -89,7 +89,20 @@ selected_label = st.sidebar.selectbox(
 )
 zoning_factor = zoning_options[selected_label]
 visibility = st.sidebar.slider("👁️ 能見度評分 (1-10):", 1, 10, 7)
-seat_grade = st.sidebar.radio("🪑 預計座位數等級:", [1, 2, 3], index=1, help="1:<5, 2:6-20, 3:21-30")
+# --- 預計座位數---
+seat_options = {
+    "5人以下": 1,
+    "6-20人": 2,
+    "21-30人": 3
+}
+
+selected_seat_label = st.sidebar.radio(
+    "🪑 預計座位數:", 
+    options=list(seat_options.keys()), 
+    index=1
+)
+
+seat_grade = seat_options[selected_seat_label]
 
 CENSUS_KEY = st.secrets["CENSUS_KEY"]
 GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
@@ -182,6 +195,7 @@ if st.sidebar.button("啟動戰略診斷"):
             st.error(f"❌ 診斷中斷 (系統雜訊): {e}")
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
 
 
