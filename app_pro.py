@@ -15,7 +15,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. 戰略名詞定義 (Reducing Noise. Increasing Clarity) ---
-st.title("🧋 Sharetea Express 決策引擎 v7.1")
+st.title("Sharetea Express 決策引擎 v7.1")
 st.markdown("<h4 style='color: #8B949E; margin-bottom: 25px;'>Reducing Noise. Increasing Clarity.</h4>", unsafe_allow_html=True)
 
 st.subheader("📚 2026 戰略體系定義")
@@ -118,3 +118,4 @@ if st.sidebar.button("執行 2026 精英診斷"):
             st.error(f"分析異常: {e}")
 
 st.caption("Produced by Marketing Designer. v7.1.0 | Reducing Noise. Increasing Clarity.")
+
