@@ -52,7 +52,7 @@ if check_password():
 
     st.markdown("### Strategic Framework Definitions")
     st.markdown("<div class='formula-display'>", unsafe_allow_html=True)
-    st.latex(r"SFS = \frac{(Spending Power \times Target Index) \times 7 \times Env Factor \times Scale Mult \times Pressure Coeff \times \mathbf{Context Factor}}{Density^{0.7} + 1}")
+    st.latex(r"SFS = \frac{(Spending Power \times Target Index) \times 7 \times Env Factor \times Scale Mult \times Pressure Coeff \times Context Factor}{Density^{0.7} + 1}")
     st.markdown("</div>", unsafe_allow_html=True)
 
     def_col1, def_col2, def_col3 = st.columns(3)
@@ -63,7 +63,7 @@ if check_password():
         st.markdown("<div class='definition-box'><b>空間壓力係數 (Pressure Coeff)</b><br>依照 ADA 建議，當人均面積低於 25 sq. ft. 時，判定為壓迫感雜訊並調降分值。</div>", unsafe_allow_html=True)
         st.markdown("<div class='definition-box'><b>位置分級基準</b><br>熱區指標 (P): 15000+<br>社區標準 (C): 8500+<br>高效普及 (X): < 8500</div>", unsafe_allow_html=True)
     with def_col3:
-        st.markdown("<div class='definition-box'><b>環境與地段基因 (Context Factor)</b><br>透過 Places API 掃描鄰里組成。精品商圈加乘 (1.15x)；快餐雜訊區降權 (0.8x)。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>環境與地段基因 (Context Factor)</b><br>透過 Places API 掃描鄰里。精品商圈加乘 (1.15x)；快餐與機能雜訊區降權 (0.8x)。</div>", unsafe_allow_html=True)
         st.markdown("<div class='definition-box'><b>顧客活動區 (200-460 sqft)</b><br>精確定義之美學介入範圍，排除吧台與工作區。</div>", unsafe_allow_html=True)
 
     st.divider()
@@ -77,41 +77,43 @@ if check_password():
     cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 200, 460, 300)
     seat_choice = st.sidebar.radio("座位數:", ["0-5 席", "6-12 席", "13-20 席"])
 
-    # 空間壓力邏輯
+    # 空間壓力偵測與評等
     est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20
     area_per_seat = cust_area / est_seats
     pressure_coeff = 1.2 if area_per_seat >= 30 else 1.0 if area_per_seat >= 25 else 0.75
     quality_label = "✨ 極致清晰" if pressure_coeff == 1.2 else "✅ 標準質感" if pressure_coeff == 1.0 else "⚠️ 體驗過載"
 
+    st.sidebar.info(f"人均空間: {area_per_seat:.1f} sq. ft./seat\n當前狀態: {quality_label}")
+
+    # Secrets (預設需於 Streamlit 雲端配置)
     G_KEY = st.secrets.get("GOOGLE_KEY")
     GEMINI_KEY = st.secrets.get("GEMINI_KEY")
     CENSUS_KEY = st.secrets.get("CENSUS_KEY")
 
-    # --- 輔助函數：地段基因偵測 (Places API) ---
+    # --- 4. 輔助函數：全維度鄰里基因偵測 ---
     def get_nearby_context(lat, lng, key):
         try:
-            url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=500&type=restaurant&key={key}"
+            # 廣域掃描所有類型，以識別隱形雜訊
+            url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=500&key={key}"
             res = requests.get(url).json()
             results = res.get('results', [])
             
-            # 統計鄰居類型
-            lifestyle_keywords = ['cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique']
-            noise_keywords = ['fast_food', 'car_repair', 'gas_station']
+            lifestyle_keywords = ['cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique', 'market', 'bakery']
+            noise_keywords = ['fast_food', 'car_repair', 'gas_station', 'car_wash', 'mechanic', 'liquor_store', 'convenience_store']
             
-            lifestyle_count = 0
-            noise_count = 0
-            
+            l_count, n_count = 0, 0
             for p in results:
-                types = p.get('types', [])
-                if any(k in str(types) for k in lifestyle_keywords): lifestyle_count += 1
-                if any(k in str(types) for k in noise_keywords): noise_count += 1
+                types = str(p.get('types', []))
+                name = p.get('name', '').lower()
+                # 偵測精品與雜訊基因
+                if any(k in types for k in lifestyle_keywords): l_count += 1
+                elif any(k in types for k in noise_keywords) or any(k in name for k in ['pho', 'donut', 'burger', 'noodle']): n_count += 1
             
-            # 判定係數
-            if lifestyle_count > noise_count + 2: return 1.15, "💎 精品地段基因", lifestyle_count, noise_count
-            if noise_count > lifestyle_count + 1: return 0.8, "⚠️ 雜訊地段基因", lifestyle_count, noise_count
-            return 1.0, "⚖️ 標準地段基因", lifestyle_count, noise_count
-        except:
-            return 1.0, "❓ 無法偵測基因", 0, 0
+            # 戰略加乘判定
+            if l_count > n_count + 1: return 1.15, "💎 精品地段基因", l_count, n_count
+            if n_count > l_count: return 0.8, "⚠️ 雜訊地段基因", l_count, n_count
+            return 1.0, "⚖️ 標準地段基因", l_count, n_count
+        except: return 1.0, "❓ 偵測異常", 0, 0
 
     def get_census_spending_power(lat, lng, api_key):
         try:
@@ -121,7 +123,8 @@ if check_password():
             state, county, tract = fips[:2], fips[2:5], fips[5:11]
             census_url = f"https://api.census.gov/data/2022/acs/acs5?get=B19013_001E&for=tract:{tract}&in=state:{state}%20county:{county}&key={api_key}"
             data = requests.get(census_url).json()
-            return int(data[1][0]) / 12
+            income = int(data[1][0])
+            return income / 12 if income > 0 else None
         except: return None
 
     def get_map_image_secure(lat, lng, key):
@@ -137,55 +140,68 @@ if check_password():
                 parts = coord_input.split(',')
                 lat, lng = float(parts[0].strip()), float(parts[1].strip())
                 
-                with st.spinner("正在執行鄰里基因掃描與數據核算..."):
-                    # 1. 聯動消費力
+                with st.spinner("正在聯動政府數據與鄰里基因掃描..."):
+                    # 1. 消費力聯動
                     spending_power = get_census_spending_power(lat, lng, CENSUS_KEY)
                     if spending_power is None:
-                        st.error("❌ 無法獲取美國政府數據，請確認座標位置。")
+                        st.error("❌ 無法獲取美國政府數據，請確認座標是否正確。")
                         st.stop()
                     
-                    # 2. 聯動地段基因 (Place API)
+                    # 2. 地段基因聯動
                     context_factor, context_label, l_count, n_count = get_nearby_context(lat, lng, G_KEY)
                     
-                    # 3. 演算 SFS
+                    # 3. 戰略數據預設
                     density = 12
-                    target_index = (0.35 * 2.5) + (0.35 * 2.0)
-                    seat_mult = 1.0 if "0-5" in seat_choice else 1.2 if "6-12" in seat_choice else 1.5
+                    eth_dict = {"華裔": 0.35, "東南亞裔": 0.15, "東亞裔": 0.10, "墨西哥裔": 0.30, "白人": 0.05, "南亞裔": 0.05}
+                    age_dict = {"18-24歲 (視覺)": 0.25, "25-34歲 (社交主力)": 0.40, "35歲以上": 0.35}
                     
-                    final_sfs = ((spending_power * target_index) * 7 * 1.1 * seat_mult * pressure_coeff * context_factor) / (math.pow(density, 0.7) + 1)
+                    target_index = (eth_dict["華裔"] * 2.5) + (age_dict["25-34歲 (社交主力)"] * 2.0)
+                    seat_mult = 1.5 if "13-20" in seat_choice else 1.2 if "6-12" in seat_choice else 1.0
+                    env_factor = 0.85 if "Mall" in loc_type else 1.25 if "Community" in loc_type else 1.1
+                    
+                    final_sfs = ((spending_power * target_index) * 7 * env_factor * seat_mult * pressure_coeff * context_factor) / (math.pow(density, 0.7) + 1)
                     level = "熱區指標 (P)" if final_sfs >= 15000 else "社區標準 (C)" if final_sfs >= 8500 else "高效普及 (X)"
                     gap_pct = max(0, (15000 - final_sfs) / 15000)
 
-                    # --- 畫面呈現 ---
+                    # --- 視覺呈現 ---
                     m1, m2 = st.columns([2, 1])
                     with m1:
                         st.subheader("Strategic Geographic Snapshot")
                         map_bytes = get_map_image_secure(lat, lng, G_KEY)
-                        if map_bytes: st.image(map_bytes, use_container_width=True)
+                        if map_bytes: st.image(map_bytes, use_container_width=True, caption="📍 Retina Density Scan")
                     with m2:
                         st.subheader("Key Strategic Metrics")
                         st.metric("SFS 分數", f"{final_sfs:.0f}")
                         st.metric("位置型態", level)
+                        st.metric("型態差距", f"{gap_pct:.1%}")
                         st.metric("地段基因", context_label)
-                        st.metric("空間質量", quality_label)
                         st.metric("月消費力", f"${spending_power:,.0f}")
+                        st.metric("周邊競業", f"{density}")
 
                     st.divider()
-                    
-                    # 鄰里基因細分 (增加清晰度)
-                    st.subheader("🧬 鄰里基因組成分析 (500m 範圍)")
-                    c1, c2, c3 = st.columns(3)
-                    c1.write(f"精品/生活方式店鋪: **{l_count}**")
-                    c2.write(f"快餐/機能雜訊店鋪: **{n_count}**")
-                    c3.write(f"環境加乘係數: **{context_factor}x**")
-                    
+
+                    d1, d2 = st.columns(2)
+                    with d1:
+                        st.subheader("👥 族群分析")
+                        st.table(pd.DataFrame(sorted(eth_dict.items(), key=lambda x:x[1], reverse=True), columns=["Category", "Ratio"]).style.format({"Ratio":"{:.1%}"}))
+                        st.subheader("🎂 年齡組成")
+                        st.table(pd.DataFrame(sorted(age_dict.items(), key=lambda x:x[1], reverse=True), columns=["Segment", "Ratio"]).style.format({"Ratio":"{:.1%}"}))
+                    with d2:
+                        st.subheader("🧠 行為與差距評估")
+                        behavior = "目的型社交消費" if final_sfs > 10000 else "便利驅動消費"
+                        st.success(f"Mode: {behavior}")
+                        st.info(f"人均空間為 {area_per_seat:.1f} sq. ft.。距離上一級門檻尚有 {gap_pct:.1%}。")
+                        st.subheader("🧬 鄰里基因組成")
+                        st.write(f"精品店鋪: {l_count} | 機能雜訊: {n_count}")
+                        st.warning("戰略建議：優化家具佈局以減少視覺雜訊。")
+
                     st.divider()
-                    st.subheader("🤖 Gemini 戰略診斷報告")
+                    st.subheader("🤖 Gemini 戰略診斷")
                     genai.configure(api_key=GEMINI_KEY.strip())
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     ctx = f"SFS:{final_sfs:.0f}, Tier:{level}, Context:{context_label}, Quality:{quality_label}"
-                    st.markdown(model.generate_content(f"以行銷、設計顧問角度分析數據：{ctx}。請針對『地段基因』與『空間呼吸感』提供具體轉型建議。").text)
+                    st.markdown(model.generate_content(f"身為 Marketing Designer 顧問，請分析：{ctx}。請針對『場域質感斷層』與『店內呼吸感』提供具體建議。").text)
 
             except Exception as e: st.error(f"分析異常: {e}")
 
-    st.caption("Produced by Marketing Designer. v8.6.0 | Reducing Noise. Increasing Clarity.")
+    st.caption("Produced by Marketing Designer. v8.6.2 | Reducing Noise. Increasing Clarity.")
