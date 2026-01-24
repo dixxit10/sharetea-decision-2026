@@ -60,7 +60,23 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🧋 Sharetea Express 決策引擎 v3")
-st.markdown("<h5 style='color: #8B949E !important;'>根據地理位置、人口普查、周邊競爭、消費指數整理的綜合分析.</h5>", unsafe_allow_html=True)
+# --- 名詞定義 ---
+with st.expander("ℹ️ 查看決策引擎名詞定義與權重邏輯"):
+    st.markdown("""
+    ### 📊 核心指標說明
+    * **SFS (Strategic Fit Score) 戰略適配分**：衡量該地點與 **Sharetea** 品牌定位的契合度。分數越高（最高 10 分），代表該區域的獲利潛力越接近 **9.5 級標竿**。
+    * **Spending Power (購買力)**：基於 Census 數據的區域家庭年收入中位數，代表當地消費者的基礎購買能量。
+    * **Density (競爭密度)**：半徑 1.5 英里內的同類飲品店數量。密度越高，對獲利效率的稀釋效應越大。
+
+    ### ⚖️ 2026 戰略加權邏輯
+    為了最大化 **品牌擴張** 的競爭力，系統導入了以下權重：
+    * **Ethnic Weight (族裔權重)**：亞裔、西裔人口密集區加權 **1.5x**，反映品牌的核心客群偏好。
+    * **Age Weight (年齡權重)**：26-35 歲「社交活躍族群」加權 **2.5x**，這是支撐高毛利新品的主要力量。
+    """)
+    
+    # 
+    st.latex(r'''SFS = \frac{\text{Spending Power} \times \text{Visibility} \times \text{Ethnic Weight} \times \text{Age Weight}}{\text{Density} + 1}''')
+st.markdown("<h5 style='color: #8B949E !important;'>內容根據Census 資料庫(人口普查、消費指數) 及 Google 資料庫(商店數量) 整理的綜合分析.</h5>", unsafe_allow_html=True)
 st.divider()
 
 # --- 內部訪問權限 ---
@@ -79,7 +95,7 @@ if not st.session_state["auth"]:
     st.stop()
 
 # --- 側邊欄：數據輸入 ---
-st.sidebar.header("📍 緯度、經度座標數據輸入")
+st.sidebar.header("📍 緯度、經度座標數據輸入(僅限美國區域)")
 coord_input = st.sidebar.text_input("貼上店鋪的緯度, 經度座標( Google ):", placeholder="33.8581, -118.0804")
 
 zoning_factor = st.sidebar.selectbox("🏗️ 地段權重 (Zoning)", 
@@ -185,4 +201,5 @@ if st.sidebar.button("啟動戰略診斷"):
 # --- 腳註 ---
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
