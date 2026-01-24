@@ -40,7 +40,7 @@ with st.expander("📚 查看 2026 戰略體系完整規則定義", expanded=Fal
         """)
     with c2:
         st.markdown("""
-        **● 競爭稀釋係數 (Density)** 對周邊競業數進行對數校正。競爭者越多，流量被稀釋的風險呈指數級成長。
+        **● 競爭稀釋係數 (Density)** 根據 Google API 抓取的對周邊競業數進行對數校正。競爭者越多，流量被稀釋的風險呈指數級成長。
         
         **● 地段屬性權重 (Env Factor)** Shopping Mall 設為 0.85 (高租金稀釋)；Community 設為 1.25 (高獲利穩定度)。
         """)
@@ -48,9 +48,9 @@ with st.expander("📚 查看 2026 戰略體系完整規則定義", expanded=Fal
     st.markdown("---")
     st.markdown("### 🏆 位置分級與戰略意義")
     st.markdown("""
-    * **熱區指標 (Grade A+) [15,000+]**：如 Arcadia，具備『目的地消費』屬性，跨區食客流、高社交溢價。
-    * **社區標準 (Grade B) [8,500+]**：日常獲利型地段，家長與專業人士為核心，品牌忠誠度高。
-    * **高效普及 (Grade C) [< 8,500]**：如 UCI，機能性地段。依賴便利流量與高周轉率，對速度與價格敏感。
+    * **熱區指標 (Prime) [15,000+]**：具備『目的地消費』屬性，跨區食客流、高社交溢價。
+    * **社區標準 (Community) [8,500+]**：日常獲利型地段，家長與專業人士為核心，品牌忠誠度高。
+    * **高效普及 (eXpress) [< 8,500]**：機能性地段。依賴便利流量與高周轉率，對速度與價格敏感。
     """)
 
 st.divider()
@@ -73,11 +73,11 @@ def get_ai_diagnostic(context, api_key):
         genai.configure(api_key=api_key.strip())
         model = genai.GenerativeModel('gemini-3-flash-preview')
         prompt = f"""
-        身為 Marketing Designer 戰略顧問，針對以下數據判讀：
+        以品牌戰略角度針對以下數據判讀：
         數據背景：{context}
         請提供中文分析：
-        1.【流量本質】：區分隨機便利型或目的地社交流量。分析地圖地理特徵與大魔王品牌(如 Mo-Mo-Paradise)的關係。
-        2.【戰略轉型】：若為 Grade C，如何針對專業客群(如 Pilates)透過包裝與質感轉型 Grade B？
+        1.【流量本質】：區分隨機便利型或目的地社交流量。分析地圖地理特徵與周邊商圈特質評估。
+        2.【戰略轉型】：若為 eXpress，如何針對鎖定客群轉型 Community？若為 Community，如何針對鎖定客群轉型 eXpress？
         """
         return model.generate_content(prompt).text
     except Exception as e: return f"⚠️ AI 診斷異常: {str(e)}"
@@ -99,7 +99,7 @@ if st.sidebar.button("執行 2026 精英診斷"):
             target_index = (eth_dict["華裔/東亞裔"] * 2.5) + (age_dict["25-34 歲社交"] * 2.0)
             final_sfs = ((spending_power * target_index) * 7 * 1.1 * seat_mult) / (math.pow(density, 0.7) + 1)
             
-            level = "熱區指標 (A+)" if final_sfs >= 15000 else "社區標準 (B)" if final_sfs >= 8500 else "高效普及 (C)"
+            level = "熱區指標 (P)" if final_sfs >= 15000 else "社區標準 (S)" if final_sfs >= 8500 else "高效普及 (X)"
             next_tier = 15000 if final_sfs < 15000 else 15000
             gap_pct = (next_tier - final_sfs) / next_tier if final_sfs < next_tier else 0
 
@@ -140,3 +140,4 @@ if st.sidebar.button("執行 2026 精英診斷"):
         except Exception as e: st.error(f"分析異常: {e}")
 
 st.caption("Produced by Marketing Designer. v7.9.0 | Reducing Noise. Increasing Clarity.")
+
