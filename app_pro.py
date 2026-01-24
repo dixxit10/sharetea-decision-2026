@@ -173,12 +173,21 @@ if check_password():
                         st.table(pd.DataFrame(sorted(eth_dict.items(), key=lambda x:x[1], reverse=True), columns=["Category", "Ratio"]).style.format({"Ratio":"{:.1%}"}))
                         st.table(pd.DataFrame(sorted(age_dict.items(), key=lambda x:x[1], reverse=True), columns=["Segment", "Ratio"]).style.format({"Ratio":"{:.1%}"}))
                     
-                    with d2:
-                        st.subheader("🧠 行為預判與戰略分析")
-                        behavior = "目的型社交消費" if final_sfs > 10000 else "便利驅動消費"
-                        st.success(f"Mode: {behavior}")
-                        st.info(f"人均空間 {area_per_seat:.1f} sq. ft.。距離上一級門檻尚有 {gap_pct:.1%}。")
-                        st.warning("建議：提升品牌魅力、聯名行銷、空間升級。")
+                   with d2:
+    st.subheader("🧠 行為預判與戰略分析")
+    # 依據 SFS 分數判斷流量本質
+    if final_sfs > 10000:
+        behavior = "目的型社交消費"
+        advice = "💎 建議：強化品牌力、聯名活動、空間升級。"
+        mode_color = "success"
+    else:
+        behavior = "便利驅動消費"
+        advice = "🛵 建議：優化點單周轉效率、強化社區積分聯動。"
+        mode_color = "info"
+    
+    st.write(f"當前模式：**{behavior}**")
+    st.info(f"人均空間 {area_per_seat:.1f} sq. ft.。距離上一級門檻尚有 {gap_pct:.1%}。")
+    st.warning(advice) # 這裡會根據模式自動切換建議內容
 
                     st.divider()
                     st.subheader("🤖 Gemini 視覺診斷與轉型建議")
@@ -189,3 +198,4 @@ if check_password():
             except Exception as e: st.error(f"分析異常: {e}")
 
     st.caption("Produced by Marketing Designer. v8.7.0 | Reducing Noise. Increasing Clarity.")
+
