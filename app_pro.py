@@ -81,9 +81,15 @@ if check_password():
     def get_vision_analysis(image_bytes, sfs_context, api_key):
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-3-flash-preview')
             img = Image.open(image_bytes)
-            prompt = f"依照營運、行銷、設計角度判讀此地圖。數據：{sfs_context}。分析 M/C/X 定位是否與視覺雜訊(加油站/汽修)衝突並給予建議。"
+            prompt = f"""
+            依照營運、行銷、設計角度，請判讀地圖截圖中的『視覺雜訊』與『鄰里基因』。
+            數據場景：{sfs_context}
+            核心任務：識別地圖上的店家機能為哪種型態，推測消費者到此區的目的為何，是快餐、鄰里、還是質感型態。
+            1.【位置分級基準】：位置分級基準是否與環境型態有落差，原因為何?
+            2.【執行方向】：針對詳細人口組成，提供簡易的執行建議(營運、行銷、設計)。
+            """
             response = model.generate_content([prompt, img])
             return response.text
         except: return "AI 診斷異常。"
@@ -145,3 +151,4 @@ if check_password():
             except Exception as e: st.error(f"分析報錯: {e}")
 
     st.caption("Produced by Marketing Designer. v9.2.0 | Reducing Noise. Increasing Clarity.")
+
