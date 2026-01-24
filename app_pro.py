@@ -3,7 +3,7 @@ import pandas as pd
 import math
 import google.generativeai as genai
 
-# --- 1. UI 品牌視覺與美學配置 ---
+# --- 1. UI 品牌視覺與戰略調性 ---
 st.set_page_config(page_title="Sharetea 2026 Strategy Suite", layout="wide")
 st.markdown("""
     <style>
@@ -16,26 +16,46 @@ st.markdown("""
         background: linear-gradient(135deg, #238636 0%, #2ea043 100%); color: white; 
         border-radius: 8px; font-weight: 600; width: 100%; height: 3.5em; 
     }
-    .strategy-card { background-color: #1C2128; padding: 20px; border-radius: 12px; border: 1px solid #30363D; }
+    .formula-box { background-color: #0D1117; border: 1px dashed #30363D; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; color: #238636; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 名詞定義區 (Reducing Noise. Increasing Clarity) ---
-st.title("🧋 Sharetea Express 決策引擎 v7.8")
+# --- 2. 戰略體系規則定義 (Reducing Noise. Increasing Clarity) ---
+st.title("🧋 Sharetea Express 決策引擎 v7.9")
 st.markdown("<h4 style='color: #8B949E;'>Reducing Noise. Increasing Clarity.</h4>", unsafe_allow_html=True)
 
-with st.expander("📚 2026 戰略體系名詞定義", expanded=False):
-    def_c1, def_c2, def_c3 = st.columns(3)
-    with def_c1:
-        st.markdown("<div class='definition-box'><b>● SFS 戰略總分</b><br>核心指標，反映獲利潛力與地段適配度。</div>", unsafe_allow_html=True)
-    with def_c2:
-        st.markdown("<div class='definition-box' style='border-left-color: #1F6FEB;'><b>● 位置分級 (Tiering)</b><br>A+: 熱區指標 | B: 社區標準 | C: 高效普及。</div>", unsafe_allow_html=True)
-    with def_c3:
-        st.markdown("<div class='definition-box' style='border-left-color: #FF4B4B;'><b>● 戰略差距 (Gap)</b><br>衡量當前點位與下一目標層級的距離。</div>", unsafe_allow_html=True)
+with st.expander("📚 查看 2026 戰略體系完整規則定義", expanded=False):
+    st.markdown("### 🧬 SFS 戰略總分演算規則")
+    st.markdown("""
+    **SFS (Strategic Finance Score)** 是量化地段潛力的核心指標。演算規則結合了族裔適配度、核心客群比例與地段溢價因子。
+    """)
+    st.markdown("""<div class='formula-box'>SFS = [(消費力 × 目標指數) × 7 × 地段權重 × 規模倍率] / (競爭密度^0.7 + 1)</div>""", unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("""
+        **● 月均基礎消費力 (Spending Power)** 根據 Census API 抓取的該普查區中位數收入，決定單價天花板與溢價空間。
+        
+        **● 戰略目標指數 (Target Index)** 針對品牌基因設定權重：華裔/東亞裔 (2.5x) 與 25-34 歲社交核心客群 (2.0x) 為最關鍵因子。
+        """)
+    with c2:
+        st.markdown("""
+        **● 競爭稀釋係數 (Density)** 對周邊競業數進行對數校正。競爭者越多，流量被稀釋的風險呈指數級成長。
+        
+        **● 地段屬性權重 (Env Factor)** Shopping Mall 設為 0.85 (高租金稀釋)；Community 設為 1.25 (高獲利穩定度)。
+        """)
+
+    st.markdown("---")
+    st.markdown("### 🏆 位置分級與戰略意義")
+    st.markdown("""
+    * **熱區指標 (Grade A+) [15,000+]**：如 Arcadia，具備『目的地消費』屬性，跨區食客流、高社交溢價。
+    * **社區標準 (Grade B) [8,500+]**：日常獲利型地段，家長與專業人士為核心，品牌忠誠度高。
+    * **高效普及 (Grade C) [< 8,500]**：如 UCI，機能性地段。依賴便利流量與高周轉率，對速度與價格敏感。
+    """)
 
 st.divider()
 
-# --- 3. 數據輸入與 Secrets 讀取 ---
+# --- 3. 數據輸入與 Secrets ---
 st.sidebar.header("📍 選址數據輸入")
 coord_input = st.sidebar.text_input("座標 (Lat, Lng):", placeholder="34.1425, -118.0483")
 loc_type = st.sidebar.selectbox("🏗️ 地段屬性:", ["Shopping Mall", "Food Court", "Community", "Plaza", "Main Street"])
@@ -45,9 +65,8 @@ seat_mult = seat_mult_map[seat_choice]
 
 G_KEY = st.secrets.get("GOOGLE_KEY")
 GEMINI_KEY = st.secrets.get("GEMINI_KEY")
-CENSUS_KEY = st.secrets.get("CENSUS_KEY")
 
-# --- 4. 強化版 AI 戰略解釋 (針對流量本質與轉型) ---
+# --- 4. 輔助函數：AI 診斷 (專注流量本質) ---
 def get_ai_diagnostic(context, api_key):
     if not api_key: return "❌ 尚未配置 GEMINI_KEY"
     try:
@@ -56,20 +75,14 @@ def get_ai_diagnostic(context, api_key):
         prompt = f"""
         身為 Marketing Designer 戰略顧問，針對以下數據判讀：
         數據背景：{context}
-
-        請針對以下維度提供深度的中文戰略分析（不需翻譯）：
-        1. 【流量本質診斷】：
-           - 判別是「隨機性/便利性流量」(如零售超市旁) 還是「目的性社交流量」(如 Arcadia 頂級餐飲聚落)。
-           - 分析地圖中的地理特徵對品牌質感的影響。
-        2. 【競爭紅海與寡占分析】：
-           - 分析「集群密度」下的品牌稀釋風險，對標周邊大魔王品牌(如 Mo-Mo-Paradise)。
-        3. 【層級躍遷介入計畫】：
-           - 若點位為 Grade C，如何針對周邊專業客群(如 Kumon, Pilates) 透過「原葉茶」或「質感包裝」實現轉型 Grade B 的策略？
+        請提供中文分析：
+        1.【流量本質】：區分隨機便利型或目的地社交流量。分析地圖地理特徵與大魔王品牌(如 Mo-Mo-Paradise)的關係。
+        2.【戰略轉型】：若為 Grade C，如何針對專業客群(如 Pilates)透過包裝與質感轉型 Grade B？
         """
         return model.generate_content(prompt).text
     except Exception as e: return f"⚠️ AI 診斷異常: {str(e)}"
 
-# --- 5. 核心執行與頁面整合 ---
+# --- 5. 核心執行 ---
 if st.sidebar.button("執行 2026 精英診斷"):
     if not coord_input:
         st.warning("請輸入座標。")
@@ -78,27 +91,23 @@ if st.sidebar.button("執行 2026 精英診斷"):
             parts = coord_input.split(',')
             lat, lng = float(parts[0].strip()), float(parts[1].strip())
             
-            # 戰略演算參數 (模擬 Arcadia/UCI 邏輯)
+            # 戰略演算參數
             density, spending_power = 12, 8200
             eth_dict = {"華裔/東亞裔": 0.35, "墨西哥裔/西裔": 0.30, "東南亞裔": 0.15, "南亞裔": 0.10, "白人": 0.10}
-            age_dict = {"18-24 歲": 0.25, "25-34 歲 (核心社交)": 0.40, "35 歲以上": 0.35}
+            age_dict = {"18-24 歲": 0.25, "25-34 歲社交": 0.40, "35 歲以上": 0.35}
             
-            # SFS 演算邏輯
-            target_index = (eth_dict["華裔/東亞裔"] * 2.5) + (age_dict["25-34 歲 (核心社交)"] * 2.0)
+            target_index = (eth_dict["華裔/東亞裔"] * 2.5) + (age_dict["25-34 歲社交"] * 2.0)
             final_sfs = ((spending_power * target_index) * 7 * 1.1 * seat_mult) / (math.pow(density, 0.7) + 1)
             
-            # 分級與差距計算
             level = "熱區指標 (A+)" if final_sfs >= 15000 else "社區標準 (B)" if final_sfs >= 8500 else "高效普及 (C)"
-            next_tier_val = 15000 if final_sfs < 15000 else 20000
-            gap_pct = (next_tier_val - final_sfs) / next_tier_val if final_sfs < next_tier_val else 0
+            next_tier = 15000 if final_sfs < 15000 else 15000
+            gap_pct = (next_tier - final_sfs) / next_tier if final_sfs < next_tier else 0
 
-            # --- 畫面佈局 ---
-            # A. 靜態地圖與核心指標
+            # 畫面呈現
             m_col1, m_col2 = st.columns([2, 1])
             with m_col1:
                 st.subheader("🖼️ 區域戰略靜態地圖")
-                if G_KEY:
-                    st.image(f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x450&scale=2&key={G_KEY}", use_container_width=True)
+                if G_KEY: st.image(f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x450&scale=2&key={G_KEY}", use_container_width=True)
             with m_col2:
                 st.subheader("📊 關鍵數據指標")
                 st.metric("SFS 戰略總分", f"{final_sfs:.0f}")
@@ -109,30 +118,25 @@ if st.sidebar.button("執行 2026 精英診斷"):
 
             st.divider()
 
-            # B. 戰略差距分析與客群細分
             d_col1, d_col2 = st.columns(2)
             with d_col1:
                 st.subheader("👥 客群結構與族裔細分")
                 st.table(pd.DataFrame(eth_dict.items(), columns=["族裔類別", "佔比"]).style.format({"佔比":"{:.1%}"}))
-                
                 st.subheader("⏳ 年齡組成細分")
                 st.bar_chart(pd.DataFrame(age_dict.items(), columns=["年齡段", "比例"]).set_index("年齡段"))
 
             with d_col2:
                 st.subheader("🧠 消費行為與預判")
-                behavior_type = "目的地社交消費 (High Value)" if final_sfs > 10000 else "隨機性便利消費 (High Turnover)"
-                st.success(f"**主要行為模式：** {behavior_type}")
-                st.info(f"**戰略差距分析：**\n目前點位距離下一層級尚有 {gap_pct:.1%} 的成長空間。建議透過強化『專業客群』的品牌介入計畫來縮小差距。")
+                behavior = "目的地社交消費 (目的性流量)" if final_sfs > 10000 else "隨機性便利消費 (隨機性流量)"
+                st.success(f"**行為模式：** {behavior}")
+                st.info(f"**戰略差距分析：** 距離下一級門檻有 {gap_pct:.1%} 成長空間。建議針對專業客群實施品質升級計畫。")
 
             st.divider()
-
-            # C. AI 戰略解釋 (升級版)
-            st.subheader("🤖 Gemini 3 系列：AI 深度戰略診斷")
-            with st.spinner("正在執行 AI 戰略判讀..."):
-                ctx = f"SFS:{final_sfs:.0f}, 級別:{level}, 競業:{density}, 消費力:{spending_power}"
+            st.subheader("🤖 Gemini 3：AI 深度戰略診斷")
+            with st.spinner("分析中..."):
+                ctx = f"SFS:{final_sfs:.0f}, 級別:{level}, 競業:{density}"
                 st.write(get_ai_diagnostic(ctx, GEMINI_KEY))
 
-        except Exception as e:
-            st.error(f"分析異常: {e}")
+        except Exception as e: st.error(f"分析異常: {e}")
 
-st.caption("Produced by Marketing Designer. v7.8.0 | Reducing Noise. Increasing Clarity.")
+st.caption("Produced by Marketing Designer. v7.9.0 | Reducing Noise. Increasing Clarity.")
