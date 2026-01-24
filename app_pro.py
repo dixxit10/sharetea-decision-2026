@@ -98,12 +98,29 @@ if check_password():
             res = requests.get(url).json()
             results = res.get('results', [])
             
-            # --- 關鍵字 ---
-    lifestyle_keywords = ['cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique', 'market', 'bakery', 'book_store', 'florist', 'jewelry_store', 'clothing_store', 'museum', 'art_gallery', 'park', 'gym', 'pilates', 'wine_bar', 'bistro', 'department_store', 'dessert_shop', 'tea_house', 'home_goods_store']
-    noise_keywords = ['fast_food', 'car_repair', 'gas_station', 'car_wash', 'mechanic', 'liquor_store', 'convenience_store', 'auto_parts', 'tire_shop', 'check_cashing', 'pawn_shop', 
-    'laundromat', 'storage', 'vape_shop', 'tobacco_shop', 'money_transfer', 'discount_store', 'dollar_store', 'smog_check', 'body_shop'
-                     ]
-    name_noise_filters = ['pho', 'donut', 'burger', 'noodle', 'taco', 'express', 'takeout', 'drive_thru']
+            # --- v8.6.5 擴張版關鍵字庫 ---
+
+# 精品/生活方式：觸發 1.15x 溢價
+lifestyle_keywords = [
+    'cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique', 'market', 'bakery', 
+    'book_store', 'florist', 'jewelry_store', 'clothing_store', 'museum', 'art_gallery', 
+    'park', 'gym', 'pilates', 'wine_bar', 'bistro', 'department_store', 'dessert_shop', 
+    'tea_house', 'home_goods_store'
+]
+
+# 機能/視覺雜訊：觸發 0.8x 降權
+noise_keywords = [
+    'fast_food', 'car_repair', 'gas_station', 'car_wash', 'mechanic', 'liquor_store', 
+    'convenience_store', 'auto_parts', 'tire_shop', 'check_cashing', 'pawn_shop', 
+    'laundromat', 'storage', 'vape_shop', 'tobacco_shop', 'money_transfer', 
+    'discount_store', 'dollar_store', 'smog_check', 'body_shop'
+]
+
+# 行為預判過濾器：偵測高周轉、低停留的餐飲屬性
+name_noise_filters = [
+    'pho', 'donut', 'burger', 'noodle', 'taco', 'express', 
+    'takeout', 'drive_thru', 'grill', 'subway', 'pizza'
+]
             
             l_count, n_count = 0, 0
             for p in results:
@@ -209,6 +226,7 @@ if check_password():
             except Exception as e: st.error(f"分析異常: {e}")
 
     st.caption("Produced by Marketing Designer. v8.6.2 | Reducing Noise. Increasing Clarity.")
+
 
 
 
