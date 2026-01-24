@@ -54,11 +54,10 @@ with col_def2:
     * **資料來源**：美國官方 Census Data API 與 Google 即時數據。
     """)
 
-st.markdown("#### 🚀 運算公式")
-st.latex(r'''SFS = \frac{\text{Spending Power} \times \text{Visibility} \times \text{Zoning} \times \text{Weights}}{\text{Density} + 1}''')
+
 st.divider()
 
-# --- 🔐 內部訪問權限 (Secrets 加密版) ---
+# --- 訪問權限 ---
 if "auth" not in st.session_state:
     st.session_state["auth"] = False
 
@@ -172,4 +171,5 @@ if st.sidebar.button("啟動戰略診斷"):
             st.error(f"❌ 診斷中斷 (系統雜訊): {e}")
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
