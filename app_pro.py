@@ -5,27 +5,19 @@ import requests
 import google.generativeai as genai
 from io import BytesIO
 
-# --- 0. 密碼驗證邏輯 (Password Gate) ---
+# --- 0. 密碼驗證邏輯 ---
 def check_password():
-    """若輸入正確密碼則回傳 True"""
-    def password_entered():
-        if st.session_state["password"] == "sharetea2026":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # 移除密碼緩存增加安全性
-        else:
-            st.session_state["password_correct"] = False
-
     if "password_correct" not in st.session_state:
         st.title("🔐 Sharetea 戰略系統門禁")
-        st.text_input("請輸入密碼以開啟戰略引擎", type="password", on_change=password_entered, key="password")
+        password = st.text_input("請輸入密碼以開啟戰略引擎", type="password", key="password_input")
+        if st.button("登入"):
+            if password == "sharetea2026":
+                st.session_state["password_correct"] = True
+                st.rerun()
+            else:
+                st.error("😕 密碼錯誤")
         return False
-    elif not st.session_state["password_correct"]:
-        st.title("🔐 Sharetea 戰略系統門禁")
-        st.text_input("請輸入密碼以開啟戰略引擎", type="password", on_change=password_entered, key="password")
-        st.error("😕 密碼錯誤，請重新輸入。")
-        return False
-    else:
-        return True
+    return True
 
 if check_password():
     # --- 1. UI & CSS 配置 ---
@@ -54,12 +46,11 @@ if check_password():
         </style>
         """, unsafe_allow_html=True)
 
-    # --- 2. 規則定義 (保留所有 Emoji 與敘述) ---
-    st.title("📚 名詞定義 v8.5")
+    # --- 2. 規則定義 ---
+    st.title("📚 名詞定義 v8.5.1")
     st.markdown("<p style='color: #8B949E; font-size: 1.2em; margin-top: -15px;'>Reducing Noise. Increasing Clarity.</p>", unsafe_allow_html=True)
 
     st.markdown("### Strategic Framework Definitions")
-
     st.markdown("<div class='formula-display'>", unsafe_allow_html=True)
     st.latex(r"SFS = \frac{(Spending Power \times Target Index) \times 7 \times Env Factor \times Scale Mult \times Pressure Coeff}{Density^{0.7} + 1}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -86,7 +77,6 @@ if check_password():
     cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 200, 460, 300)
     seat_choice = st.sidebar.radio("座位數:", ["0-5 席", "6-12 席", "13-20 席"])
 
-    # 空間壓力偵測
     est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20
     area_per_seat = cust_area / est_seats
 
@@ -103,18 +93,27 @@ if check_password():
     GEMINI_KEY = st.secrets.get("GEMINI_KEY")
     CENSUS_KEY = st.secrets.get("CENSUS_KEY")
 
-    # --- 輔助函數：數據真實性檢核 (不給予 8200 預設值) ---
+    # --- 修正後的 Census 函數 (含診斷資訊) ---
     def get_census_spending_power(lat, lng, api_key):
         try:
+            # 1. FCC Geo API
             geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
             geo_res = requests.get(geo_url).json()
+            if not geo_res.get('results'): return "GEO_ERROR"
+            
             fips = geo_res['results'][0]['block_fips']
             state, county, tract = fips[:2], fips[2:5], fips[5:11]
+            
+            # 2. Census API
             census_url = f"https://api.census.gov/data/2022/acs/acs5?get=B19013_001E&for=tract:{tract}&in=state:{state}%20county:{county}&key={api_key}"
-            data = requests.get(census_url).json()
-            return int(data[1][0]) / 12
-        except:
-            return None # 數據不全時回傳 None 以便觸發報錯
+            response = requests.get(census_url)
+            if response.status_code != 200: return "API_KEY_ERROR"
+            
+            data = response.json()
+            income = int(data[1][0])
+            return income / 12 if income > 0 else "NO_DATA"
+        except Exception:
+            return None
 
     def get_map_image_secure(lat, lng, key):
         url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x450&scale=2&key={key}"
@@ -126,7 +125,7 @@ if check_password():
         try:
             genai.configure(api_key=api_key.strip())
             model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"身為 Marketing Designer 顧問，以行銷、戰略、設計角度分析。數據：{context}。請提供 1.【評分地理成因】2.【轉型執行建議】"
+            prompt = f"以 Marketing Designer 顧問角度，針對：{context} 提供：1.【評分地理成因】 2.【轉型執行建議】"
             return model.generate_content(prompt).text
         except Exception as e: return f"AI 診斷暫時不可用: {str(e)}"
 
@@ -136,18 +135,25 @@ if check_password():
             st.error("請提供座標資料。")
         else:
             try:
+                # 確保座標順序正確 (緯度, 經度)
                 parts = coord_input.split(',')
                 lat, lng = float(parts[0].strip()), float(parts[1].strip())
                 
                 with st.spinner("正在聯動政府數據與地理稽核..."):
-                    spending_power = get_census_spending_power(lat, lng, CENSUS_KEY)
+                    result = get_census_spending_power(lat, lng, CENSUS_KEY)
                     
-                    if spending_power is None:
-                        st.error("❌ 無法獲取美國政府普查數據。請確認座標是否在美國境內，或檢查 API 連線狀態。")
+                    if result == "GEO_ERROR":
+                        st.error("📍 座標無法識別，請確認格式為『緯度, 經度』(美國經度應為負數)。")
+                        st.stop()
+                    elif result == "API_KEY_ERROR":
+                        st.error("🏛️ Census API 金鑰無效或受限。")
+                        st.stop()
+                    elif result == "NO_DATA" or result is None:
+                        st.error("❌ 該區域普查數據缺失。請確認是否為居住/商業混合區。")
                         st.stop()
                     
+                    spending_power = result
                     density = 12
-                    eth_dict = {"華裔/東亞裔": 0.35, "墨西哥裔/西裔": 0.30, "社交核心": 0.35}
                     target_index = (0.35 * 2.5) + (0.35 * 2.0)
                     final_sfs = ((spending_power * target_index) * 7 * 1.1 * seat_mult * pressure_coeff) / (math.pow(density, 0.7) + 1)
                     
@@ -167,7 +173,7 @@ if check_password():
                         st.metric("型態差距", f"{gap_pct:.1%}")
                         st.metric("空間質量", quality_label)
                         st.metric("月消費力 (Census)", f"${spending_power:,.0f}")
-                        st.metric("周邊競業", f"{density}")
+                        st.metric("周邊競業", f"{density}") # 修復多餘引號
 
                     st.divider()
                     st.subheader("🤖 Gemini 戰略診斷報告")
@@ -177,4 +183,4 @@ if check_password():
             except Exception as e:
                 st.error(f"分析異常: {e}")
 
-    st.caption("Produced by Marketing Designer. v8.5.0 | Reducing Noise. Increasing Clarity.")
+    st.caption("Produced by Marketing Designer. v8.5.1 | Reducing Noise. Increasing Clarity.")
