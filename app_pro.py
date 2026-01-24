@@ -129,26 +129,27 @@ if st.sidebar.button("啟動戰略診斷"):
             lng = float(parts[1].strip())
             
             with st.spinner("正在解析地理數據雜訊..."):
-                with st.spinner("正在解析地理數據雜訊..."):
-                # --- 1. Google Places API (戰略優化版) ---
-                # 擴展關鍵字以覆蓋所有潛在競爭對手，確保 Density 計算無死角
-                search_keywords = "bubble+tea|boba|milk+tea|tea+house"
-                place_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=2414&keyword={search_keywords}&key={GOOGLE_KEY}"
+            # --- 1. Google Places API  ---
+            search_keywords = "bubble+tea|boba|milk+tea|tea+house"
+            place_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=2414&keyword={search_keywords}&key={GOOGLE_KEY}"
+    
+            places_res = requests.get(place_url).json()
+            density = len(places_res.get('results', []))
                 
             
-                # 第三階段：數據處理與人口分析
-                if len(census_response) < 2:
-                    spending_power, asian_r, hispanic_r, age_r = 8500, 0.45, 0.35, 0.18 
-                    top_3_eth = [("亞裔 (Asian)", 0.45), ("西裔 (Hispanic)", 0.35), ("白人 (White)", 0.15)]
-                else:
-                    c = census_response[1]
-                    total_pop = int(c[0]) if c[0] else 1
-                    income = int(c[1]) if (c[1] and int(c[1]) > 0) else 88000 
-                    spending_power = income / 12
-                    eth_map = {"亞裔 (Asian)": int(c[4])/total_pop, "西裔 (Hispanic)": int(c[5])/total_pop, "白人 (White)": int(c[2])/total_pop, "非裔 (Black)": int(c[3])/total_pop}
-                    top_3_eth = sorted(eth_map.items(), key=lambda x: x[1], reverse=True)[:3]
-                    asian_r, hispanic_r = eth_map["亞裔 (Asian)"], eth_map["西裔 (Hispanic)"]
-                    age_r = sum(int(c[i]) for i in range(6, 10)) / total_pop
+            # 第三階段：數據處理與人口分析
+            if len(census_response) < 2:
+                spending_power, asian_r, hispanic_r, age_r = 8500, 0.45, 0.35, 0.18 
+                top_3_eth = [("亞裔 (Asian)", 0.45), ("西裔 (Hispanic)", 0.35), ("白人 (White)", 0.15)]
+            else:
+                c = census_response[1]
+                total_pop = int(c[0]) if c[0] else 1
+                income = int(c[1]) if (c[1] and int(c[1]) > 0) else 88000 
+                spending_power = income / 12
+                eth_map = {"亞裔 (Asian)": int(c[4])/total_pop, "西裔 (Hispanic)": int(c[5])/total_pop, "白人 (White)": int(c[2])/total_pop, "非裔 (Black)": int(c[3])/total_pop}
+                 top_3_eth = sorted(eth_map.items(), key=lambda x: x[1], reverse=True)[:3]
+                asian_r, hispanic_r = eth_map["亞裔 (Asian)"], eth_map["西裔 (Hispanic)"]
+                 age_r = sum(int(c[i]) for i in range(6, 10)) / total_pop
 
             # --- 第四階段：SFS 運算 ---
             ethnic_weight = 1 + (asian_r * 1.5) + (hispanic_r * 1.0)
@@ -207,6 +208,7 @@ if st.sidebar.button("啟動戰略診斷"):
 # --- 腳註 ---
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
 
 
