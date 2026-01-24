@@ -76,7 +76,7 @@ st.sidebar.header("📍 店面座標 (僅限美國區域)")
 coord_input = st.sidebar.text_input("貼上緯度, 經度 (Google Maps):", placeholder="33.8581, -118.0804")
 
 zoning_factor = st.sidebar.selectbox("🏗️ 地段權重 (Zoning)", 
-                                    options=[(1.0, "商業/商場 (1.0)"), (0.7, "混合分區 (0.7)"), (0.0, "純住宅區 (0.0)")])[0]
+                                    options=[(1.0, "商業/商場"), (0.7, "混合分區"), (0.0, "純住宅區")])[0]
 visibility = st.sidebar.slider("👁️ 能見度評分 (1-10):", 1, 10, 7)
 seat_grade = st.sidebar.radio("🪑 預計座位數等級:", [1, 2, 3], index=1, help="1:<5, 2:6-20, 3:21-30")
 
@@ -171,5 +171,6 @@ if st.sidebar.button("啟動戰略診斷"):
             st.error(f"❌ 診斷中斷 (系統雜訊): {e}")
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
 
