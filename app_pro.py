@@ -3,99 +3,96 @@ import pandas as pd
 import math
 import google.generativeai as genai
 
-# --- [UI 與名詞定義部分保持不變，節省篇幅] ---
+# --- 1. UI 與 品牌美學配置 ---
+st.set_page_config(page_title="Sharetea 2026 Strategy Suite", layout="wide")
+st.markdown("""
+    <style>
+    .stApp { background-color: #0E1117; color: #E6EDF3; }
+    div[data-testid="metric-container"] { background-color: #1C2128; border: 1px solid #30363D; padding: 20px; border-radius: 12px; }
+    .definition-box { background-color: #1C2128; border-left: 5px solid #238636; padding: 15px; margin-bottom: 15px; border-radius: 0 8px 8px 0; }
+    .stButton>button { background: linear-gradient(135deg, #238636 0%, #2ea043 100%); color: white; border-radius: 8px; font-weight: 600; width: 100%; height: 3.5em; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- 4. 強化版 AI 診斷函數 ---
+# --- 2. 戰略名詞定義 (增加清晰度) ---
+st.title("🧋 Sharetea Express 決策引擎 v6.9")
+st.markdown("<h4 style='color: #8B949E; margin-bottom: 25px;'>Reducing Noise. Increasing Clarity.</h4>", unsafe_allow_html=True)
+
+st.subheader("📚 2026 戰略體系定義")
+def_c1, def_c2, def_c3 = st.columns(3)
+with def_c1:
+    st.markdown("<div class='definition-box'><b>● SFS 戰略總分</b><br>綜合演算得分，反映獲利潛力與地段適配度。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='definition-box' style='border-left-color: #D29922;'><b>● 熱區指標 (A+)</b><br>門檻 15000。精品化戰略核心。</div>", unsafe_allow_html=True)
+with def_c2:
+    st.markdown("<div class='definition-box' style='border-left-color: #1F6FEB;'><b>● 社區標準 (B)</b><br>門檻 8500。日常穩定獲利核心。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='definition-box' style='border-left-color: #8B949E;'><b>● 高效普及 (C)</b><br>動態門檻。擴張與市佔率戰略。</div>", unsafe_allow_html=True)
+with def_c3:
+    st.markdown("<div class='definition-box' style='border-left-color: #FF4B4B;'><b>● 戰略排除 (Exclusion)</b><br>低於基準線則封鎖數據，確保精準開發。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='definition-box' style='border-left-color: #00D166;'><b>● 月均基礎消費力</b><br>區域獲利天花板。</div>", unsafe_allow_html=True)
+
+st.divider()
+
+# --- 3. 數據輸入 (確保變數優先定義) ---
+st.sidebar.header("📍 選址數據輸入")
+# 這裡先定義變數，確保後面的 if 邏輯能抓到它
+coord_input = st.sidebar.text_input("座標 (Lat, Lng):", placeholder="34.1425, -118.0483")
+loc_type = st.sidebar.selectbox("🏗️ 地段屬性:", ["Shopping Mall", "Food Court", "Community", "Plaza", "Main Street"])
+seat_mult_map = {"高效型": 1.0, "標準型": 1.2, "旗艦型": 1.5}
+seat_choice = st.sidebar.radio("🪑 空間規模:", list(seat_mult_map.keys()))
+seat_mult = seat_mult_map[seat_choice]
+
+# API Keys
+G_KEY = st.secrets.get("GOOGLE_KEY")
+GEMINI_KEY = st.secrets.get("GEMINI_KEY")
+
+# --- 4. 戰略演算與 AI 函數 ---
 def get_ai_diagnostic(context, key):
     try:
         genai.configure(api_key=key)
+        # 自動搜尋可用模型以避免 404
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        target_model = 'gemini-1.5-flash' if 'models/gemini-1.5-flash' in models else 'gemini-pro'
         
-        # 戰略備案：自動嘗試不同的模型名稱規範
-        model_names = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
-        
-        selected_model = None
-        # 獲取當前 API Key 支援的所有模型清單（這能徹底解決 404）
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 優先尋找 1.5 Flash
-        for target in model_names:
-            full_target = f"models/{target}"
-            if full_target in available_models or target in available_models:
-                selected_model = target
-                break
-        
-        if not selected_model:
-            selected_model = 'gemini-pro' # 最後的保底
-            
-        model = genai.GenerativeModel(selected_model)
-        
-        prompt = f"""
-        身為 Marketing Designer 戰略顧問，請執行以下診斷任務：
-        數據背景：{context}
-        1. 地理特徵解讀：為什麼地段環境會導致目前的 SFS 評分？
-        2. 戰略指引：這是『普及擴張』還是『精品溢價』點？給出一個行動指令。
-        3. 商務英文翻譯。
-        """
-        
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"⚠️ AI 診斷連接失敗。請確認 API Key 是否已在 Google AI Studio 啟用 Gemini 1.5 系列權限。\n錯誤代碼: {str(e)}"
+        model = genai.GenerativeModel(target_model)
+        prompt = f"身為 Marketing Designer 戰略顧問，解讀以下選址數據並對照地理環境快照，提供『人工翻譯診斷』與英文翻譯：{context}"
+        return model.generate_content(prompt).text
+    except: return "AI 診斷連接中，請稍候..."
 
-# --- 5. 核心診斷流程 (結構對齊版) ---
+# --- 5. 核心診斷流程 ---
 if st.sidebar.button("啟動精英診斷"):
     if not coord_input:
-        st.warning("請輸入座標。")
+        st.warning("請在側邊欄輸入正確座標。")
     else:
         try:
-            # 座標解析
             parts = coord_input.split(',')
             lat, lng = float(parts[0].strip()), float(parts[1].strip())
             
-            with st.spinner("✨ 數據合成與視覺除噪中..."):
-                # [模擬數據抓取邏輯]
-                density, spending_power = 12, 8200
-                eth_dict = {"華裔/台灣裔": 0.35, "墨西哥裔/西裔": 0.35, "社交主力": 0.30}
-                seg_s = 0.30
-                
-                # 地段權重與 SFS 計算
-                env_factor = {"Shopping Mall": 0.85, "Food Court": 0.95, "Main Street": 1.0, "Plaza": 1.15, "Community": 1.25}[loc_type]
-                target_index = (0.35 * 2.0) + (0.35 * 2.0) + (0.30 * 2.5)
-                final_sfs = ((spending_power * target_index) * 7 * env_factor * 1.0) / (math.pow(density, 0.7) + 1)
+            # [模擬數據 - 實務請串接 API]
+            density, spending_power = 12, 8200
+            eth_dict = {"華裔/台灣裔": 0.35, "墨西哥裔/西裔": 0.35, "東南亞裔": 0.1, "南亞裔": 0.05, "東亞裔": 0.05, "白人": 0.1}
+            age_dict = {"18-24 歲 (視覺)": 0.2, "25-34 歲 (社交)": 0.3, "35 歲以上 (品質)": 0.5}
+            seg_s = 0.3
 
-            # 門檻判定 (T_EX)
-            T_EX = {"Shopping Mall": 6500, "Food Court": 6000, "Main Street": 5500, "Plaza": 4500, "Community": 4000}[loc_type]
+            # 門檻與權重
+            threshold_map = {"Shopping Mall": 6500, "Food Court": 6000, "Main Street": 5500, "Plaza": 4500, "Community": 4000}
+            weight_map = {"Shopping Mall": 0.85, "Food Court": 0.95, "Main Street": 1.0, "Plaza": 1.15, "Community": 1.25}
+            
+            T_EX = threshold_map[loc_type]
+            env_factor = weight_map[loc_type]
+
+            # SFS 演算
+            # $$SFS = \frac{\left( \text{Spending Power} \times \text{Target Index} \right) \times 7 \times \text{Env Factor} \times \text{Seat Mult}}{\text{Density}^{0.7} + 1}$$
+            target_index = (0.35 * 2.0) + (0.35 * 2.0) + (0.3 * 2.5)
+            final_sfs = ((spending_power * target_index) * 7 * env_factor * seat_mult) / (math.pow(density, 0.7) + 1)
 
             if final_sfs < T_EX:
-                st.error(f"🛑 戰略排除：SFS {final_sfs:.0f} 低於基準線。數據鎖定。")
+                st.error(f"🛑 戰略排除：SFS {final_sfs:.0f} 未達基準 ({T_EX})。")
             else:
                 level = "熱區指標 (A+)" if final_sfs >= 15000 else "社區標準 (B)" if final_sfs >= 8500 else "高效普及 (C)"
+                gap_val = (15000-final_sfs)/15000 if "社區" in level else (8500-final_sfs)/8500
                 
-                tab1, tab2, tab3 = st.tabs(["💎 診斷報告", "👥 客群畫像", "🤖 AI 戰略翻譯"])
-                
+                # --- 分頁呈現 ---
+                tab1, tab2, tab3 = st.tabs(["💎 診斷報告", "👥 客群結構", "🤖 AI 戰略翻譯"])
+
                 with tab1:
-                    # 地圖快照 (High-DPI 渲染)
-                    map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=600x400&scale=2&maptype=roadmap&markers=color:red%7C{lat},{lng}&key={st.secrets['GOOGLE_KEY']}"
-                    st.image(map_url, width=700, caption="📍 地理環境視覺稽核")
-                    
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("SFS 總分", f"{final_sfs:.0f}")
-                    m2.metric("位置分級", level.split(' ')[0])
-                    m3.metric("月消費力", f"${spending_power:,.0f}")
-
-                with tab2:
-                    st.write("##### 🎂 客群比例 (高→低排序)")
-                    # 排序邏輯與表格呈現...
-                    st.info("族裔與年齡分布已根據比例自動排序。")
-
-                with tab3:
-                    with st.spinner("🤖 Gemini 正在自動轉譯地理特徵..."):
-                        context_str = f"SFS:{final_sfs:.0f}, 地段:{loc_type}, 社交比例:{seg_s:.1%}, 分級:{level}"
-                        report = get_ai_diagnostic(context_str, st.secrets['GEMINI_KEY'])
-                        st.markdown("### 🤖 Gemini 戰略翻譯結果")
-                        st.info(report)
-
-        except Exception as e:
-            st.error(f"分析異常，請檢查座標格式或 API 金鑰配置。 (錯誤: {e})")
-
-st.caption("Marketing Designer Suite v6.8.1")
+                    # 地圖快
