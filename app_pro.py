@@ -2,10 +2,10 @@ import streamlit as st
 import requests
 import pandas as pd
 
-# --- 🎨 UI 介面與美學配置 ---
+# --- UI 介面配置 ---
 st.set_page_config(page_title="Sharetea Express 決策引擎 v3", layout="wide")
 
-# --- ✨ 8.5 級標竿美學：時尚深色版 (Sleek Dark UI) ---
+# --- CSS ---
 st.markdown("""
     <style>
     /* 全域底色與文字顏色 */
@@ -14,13 +14,13 @@ st.markdown("""
         color: #FFFFFF;
     }
     
-    /* 側邊欄樣式優化 */
+    /* 側邊欄 */
     [data-testid="stSidebar"] {
         background-color: #161B22; /* 稍淡的灰色輔助色 */
         border-right: 1px solid #30363D;
     }
     
-    /* 數據卡片：壓克力深色質感 */
+    /* 數據卡片 */
     .metric-card {
         background: rgba(255, 255, 255, 0.05); /* 極低透明白，呈現深灰質感 */
         padding: 20px;
@@ -30,13 +30,13 @@ st.markdown("""
         margin-bottom: 10px;
     }
     
-    /* 文字清晰度優化 */
+    /* 文字 */
     h1, h2, h3, p {
         color: #FFFFFF !important;
         font-family: 'Inter', 'Helvetica Neue', sans-serif;
     }
     
-    /* 強化顏色：綠色與紅色 */
+    /* 重點提示色：綠色與紅色 */
     .stMetric [data-testid="stMetricValue"] {
         color: #00D166 !important; /* 時尚綠 */
     }
@@ -63,34 +63,34 @@ st.title("🧋 Sharetea Express 決策引擎 v3")
 st.markdown("<h5 style='color: #8B949E !important;'>根據地理位置、人口普查、周邊競爭、消費指數整理的綜合分析.</h5>", unsafe_allow_html=True)
 st.divider()
 
-# --- 🔐 內部訪問權限 ---
-INTERNAL_PASSWORD = "sharetea2026"
+# --- 內部訪問權限 ---
 if "auth" not in st.session_state:
     st.session_state["auth"] = False
 
 if not st.session_state["auth"]:
     pwd = st.text_input("請輸入 2026 戰略通訊碼:", type="password")
     if st.button("驗證進入"):
-        if pwd == INTERNAL_PASSWORD:
+        
+        if pwd == st.secrets["APP_PASSWORD"]: 
             st.session_state["auth"] = True
             st.rerun()
         else:
-            st.error("密碼錯誤，請聯繫行銷設計部門。")
+            st.error("❌ 密碼錯誤，請聯繫行銷設計部門。")
     st.stop()
 
-# --- 🏠 側邊欄：數據輸入 (取代原本的 input) ---
-st.sidebar.header("📍 座標數據輸入")
-coord_input = st.sidebar.text_input("貼上 Google 座標 (緯度, 經度):", placeholder="33.8581, -118.0804")
+# --- 側邊欄：數據輸入 ---
+st.sidebar.header("📍 緯度、經度座標數據輸入")
+coord_input = st.sidebar.text_input("貼上店鋪的緯度, 經度座標( Google ):", placeholder="33.8581, -118.0804")
 
 zoning_factor = st.sidebar.selectbox("🏗️ 地段權重 (Zoning)", 
                                     options=[(1.0, "商業/商場 (1.0)"), (0.7, "混合分區 (0.7)"), (0.0, "純住宅區 (0.0)")])[0]
-visibility = st.sidebar.slider("👁️ 微觀視角評分 (1-10):", 1, 10, 7)
+visibility = st.sidebar.slider("👁️ 人員評分 (1-10):", 1, 10, 7)
 seat_grade = st.sidebar.radio("🪑 預計座位數等級:", [1, 2, 3], index=1, help="1:<5, 2:6-20, 3:21-30")
 
 CENSUS_KEY = st.secrets["CENSUS_KEY"]
 GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
 
-if st.sidebar.button("啟動 9.5 級戰略診斷"):
+if st.sidebar.button("啟動戰略診斷"):
     if not coord_input:
         st.warning("請先貼上座標。")
     else:
@@ -128,7 +128,7 @@ if st.sidebar.button("啟動 9.5 級戰略診斷"):
                     asian_r, hispanic_r = eth_map["亞裔 (Asian)"], eth_map["西裔 (Hispanic)"]
                     age_r = sum(int(c[i]) for i in range(6, 10)) / total_pop
 
-            # --- 🎯 第四階段：SFS 運算 (LaTeX 呈現) ---
+            # --- 第四階段：SFS 運算 (LaTeX 呈現) ---
             ethnic_weight = 1 + (asian_r * 1.5) + (hispanic_r * 1.0)
             age_weight = 1 + (age_r * 2.5)
             final_sfs = (spending_power * visibility * zoning_factor * ethnic_weight * age_weight) / (density + 1)
@@ -143,7 +143,7 @@ if st.sidebar.button("啟動 9.5 級戰略診斷"):
             else:
                 grade, next_t, next_label, color = "Grade C", 8500, "Grade B", "blue"
 
-            # --- 🚀 輸出渲染報告 ---
+            # --- 輸出報告 ---
             st.subheader("📊 診斷中心即時報告")
             m1, m2, m3 = st.columns(3)
             m1.metric("SFS 戰略適配分", f"{final_sfs:.0f}")
@@ -180,8 +180,9 @@ if st.sidebar.button("啟動 9.5 級戰略診斷"):
                 st.caption(f"社交主力 (26-35): {age_r:.1%}")
 
         except Exception as e:
-            st.error(f"❌ 診斷中斷 (系統雜訊): {e}")
+            st.error(f"❌ 診斷中斷 (格式錯誤、每日流量限制，聯繫行銷部門): {e}")
 
-# --- 🛠️ 底部腳註 ---
+# --- 腳註 ---
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
