@@ -85,7 +85,7 @@ if check_password():
 
     st.sidebar.info(f"人均空間: {area_per_seat:.1f} sq. ft./seat\n當前狀態: {quality_label}")
 
-    # Secrets (預設需於 Streamlit 雲端配置)
+    # Secrets 獲取
     G_KEY = st.secrets.get("GOOGLE_KEY")
     GEMINI_KEY = st.secrets.get("GEMINI_KEY")
     CENSUS_KEY = st.secrets.get("CENSUS_KEY")
@@ -93,48 +93,46 @@ if check_password():
     # --- 4. 輔助函數：全維度鄰里基因偵測 ---
     def get_nearby_context(lat, lng, key):
         try:
-            # 廣域掃描所有類型，以識別隱形雜訊
             url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=500&key={key}"
             res = requests.get(url).json()
             results = res.get('results', [])
             
-            # --- v8.6.5 擴張版關鍵字庫 ---
-
-# 精品/生活方式：觸發 1.15x 溢價
-lifestyle_keywords = [
-    'cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique', 'market', 'bakery', 
-    'book_store', 'florist', 'jewelry_store', 'clothing_store', 'museum', 'art_gallery', 
-    'park', 'gym', 'pilates', 'wine_bar', 'bistro', 'department_store', 'dessert_shop', 
-    'tea_house', 'home_goods_store'
-]
-
-# 機能/視覺雜訊：觸發 0.8x 降權
-noise_keywords = [
-    'fast_food', 'car_repair', 'gas_station', 'car_wash', 'mechanic', 'liquor_store', 
-    'convenience_store', 'auto_parts', 'tire_shop', 'check_cashing', 'pawn_shop', 
-    'laundromat', 'storage', 'vape_shop', 'tobacco_shop', 'money_transfer', 
-    'discount_store', 'dollar_store', 'smog_check', 'body_shop'
-]
-
-# 行為預判過濾器：偵測高周轉、低停留的餐飲屬性
-name_noise_filters = [
-    'pho', 'donut', 'burger', 'noodle', 'taco', 'express', 
-    'takeout', 'drive_thru', 'grill', 'subway', 'pizza'
-]
+            # --- 關鍵字庫縮進修正 ---
+            lifestyle_keywords = [
+                'cafe', 'spa', 'beauty_salon', 'gallery', 'yoga', 'boutique', 'market', 'bakery', 
+                'book_store', 'florist', 'jewelry_store', 'clothing_store', 'museum', 'art_gallery', 
+                'park', 'gym', 'pilates', 'wine_bar', 'bistro', 'department_store', 'dessert_shop', 
+                'tea_house', 'home_goods_store'
+            ]
+            
+            noise_keywords = [
+                'fast_food', 'car_repair', 'gas_station', 'car_wash', 'mechanic', 'liquor_store', 
+                'convenience_store', 'auto_parts', 'tire_shop', 'check_cashing', 'pawn_shop', 
+                'laundromat', 'storage', 'vape_shop', 'tobacco_shop', 'money_transfer', 
+                'discount_store', 'dollar_store', 'smog_check', 'body_shop'
+            ]
+            
+            name_noise_filters = [
+                'pho', 'donut', 'burger', 'noodle', 'taco', 'express', 
+                'takeout', 'drive_thru', 'grill', 'subway', 'pizza'
+            ]
             
             l_count, n_count = 0, 0
             for p in results:
                 types = str(p.get('types', []))
                 name = p.get('name', '').lower()
                 # 偵測精品與雜訊基因
-                if any(k in types for k in lifestyle_keywords): l_count += 1
-                elif any(k in types for k in noise_keywords) or any(k in name for k in ['pho', 'donut', 'burger', 'noodle']): n_count += 1
+                if any(k in types for k in lifestyle_keywords): 
+                    l_count += 1
+                elif any(k in types for k in noise_keywords) or any(k in name for k in name_noise_filters): 
+                    n_count += 1
             
             # 戰略加乘判定
             if l_count > n_count + 1: return 1.15, "💎 精品地段基因", l_count, n_count
             if n_count > l_count: return 0.8, "⚠️ 功能地段基因", l_count, n_count
             return 1.0, "⚖️ 標準地段基因", l_count, n_count
-        except: return 1.0, "❓ 偵測異常", 0, 0
+        except: 
+            return 1.0, "❓ 偵測異常", 0, 0
 
     def get_census_spending_power(lat, lng, api_key):
         try:
@@ -155,7 +153,8 @@ name_noise_filters = [
 
     # --- 5. 核心執行 ---
     if st.sidebar.button("Execute Strategic Analysis"):
-        if not coord_input: st.error("請提供座標資料。")
+        if not coord_input: 
+            st.error("請提供座標資料。")
         else:
             try:
                 parts = coord_input.split(',')
@@ -168,10 +167,10 @@ name_noise_filters = [
                         st.error("❌ 無法獲取美國政府數據，請確認座標是否正確。")
                         st.stop()
                     
-                    # 2. 地段基因聯動
+                    # 2. 地段基因聯動 (Place API)
                     context_factor, context_label, l_count, n_count = get_nearby_context(lat, lng, G_KEY)
                     
-                    # 3. 戰略數據預設
+                    # 3. 戰略數據計算
                     density = 12
                     eth_dict = {"華裔": 0.35, "東南亞裔": 0.15, "東亞裔": 0.10, "墨西哥裔": 0.30, "白人": 0.05, "南亞裔": 0.05}
                     age_dict = {"18-24歲 (視覺)": 0.25, "25-34歲 (社交主力)": 0.40, "35歲以上": 0.35}
@@ -180,6 +179,7 @@ name_noise_filters = [
                     seat_mult = 1.5 if "13-20" in seat_choice else 1.2 if "6-12" in seat_choice else 1.0
                     env_factor = 0.85 if "Mall" in loc_type else 1.25 if "Community" in loc_type else 1.1
                     
+                    # 最終 SFS 演算公式
                     final_sfs = ((spending_power * target_index) * 7 * env_factor * seat_mult * pressure_coeff * context_factor) / (math.pow(density, 0.7) + 1)
                     level = "熱區指標 (P)" if final_sfs >= 15000 else "社區標準 (C)" if final_sfs >= 8500 else "高效普及 (X)"
                     gap_pct = max(0, (15000 - final_sfs) / 15000)
@@ -223,11 +223,7 @@ name_noise_filters = [
                     ctx = f"SFS:{final_sfs:.0f}, Tier:{level}, Context:{context_label}, Quality:{quality_label}"
                     st.markdown(model.generate_content(f"身為 Marketing Designer 顧問，請分析：{ctx}。請針對『場域質感斷層』與『店內呼吸感』提供具體建議。").text)
 
-            except Exception as e: st.error(f"分析異常: {e}")
+            except Exception as e: 
+                st.error(f"分析異常: {e}")
 
-    st.caption("Produced by Marketing Designer. v8.6.2 | Reducing Noise. Increasing Clarity.")
-
-
-
-
-
+    st.caption("Produced by Marketing Designer. v8.6.6 | Reducing Noise. Increasing Clarity.")
