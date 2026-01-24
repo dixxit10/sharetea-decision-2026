@@ -31,31 +31,25 @@ if check_password():
         </style>
         """, unsafe_allow_html=True)
 
-    # --- 2. 側邊欄：物理空間與座標 (100-600 sqft) ---
+    # --- 2. 側邊欄：物理空間與座標 ---
     st.sidebar.header("📐 物理空間與座標")
     coord_input = st.sidebar.text_input("座標 (Lat, Lng):", placeholder="33.6507, -117.8381")
     
-    # 擴展空間範圍至 100-600 sqft
     cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
     seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"])
     
-    # 物理空間硬性診斷
     est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
     area_per_seat = cust_area / est_seats
-    
-    # 空間壓力係數邏輯：空間越小，係數越低，代表體驗噪音越大
     pressure_coeff = 1.2 if area_per_seat >= 35 else 1.0 if area_per_seat >= 25 else 0.75 if area_per_seat >= 15 else 0.5
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("📐 物理診斷報告")
     st.sidebar.write(f"人均空間: **{area_per_seat:.1f} sq. ft.**")
     
-    # 物理限制判定：250sqft 以下物理上無法承載 M 店
     physical_limit = "eXpress (X) 優先" if cust_area < 250 else "Community (C) 潛力" if cust_area < 450 else "Model (M) 潛力"
     st.sidebar.info(f"物理空間建議：{physical_limit}")
 
     # --- 3. API 核心定義 ---
-    # 在此預先獲取 Key，避免 Scope 錯誤
     G_KEY = st.secrets.get("GOOGLE_KEY")
     GEMINI_KEY = st.secrets.get("GEMINI_KEY")
     C_KEY = st.secrets.get("CENSUS_KEY")
@@ -83,7 +77,7 @@ if check_password():
     
     col_def1, col_def2, col_def3 = st.columns(3)
     with col_def1:
-        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>整合消費力、族群權重與物理空間壓力的綜合潛力值。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段獲利天花板指標。整合消費力、族群權重與物理空間壓力。</div>", unsafe_allow_html=True)
     with col_def2:
         st.markdown("<div class='definition-box'><b>空間壓力係數</b><br>基於人均面積判定。15sqft以下(0.5)視為極度擁擠，會大幅拉低SFS。</div>", unsafe_allow_html=True)
     with col_def3:
@@ -99,15 +93,14 @@ if check_password():
             try:
                 lat, lng = [float(x.strip()) for x in coord_input.split(',')]
                 with st.spinner("🚀 數據同步與空間基因診斷中..."):
-                    # API 數據採集
+                    # 數據採集
                     income, pop, eth, age = get_census_data(lat, lng)
                     density = get_density(lat, lng)
                     
-                    # SFS 戰略運算
+                    # 運算
                     target_index = (eth.get("東亞裔", 0) * 3.0) + (age.get("25-34", 0) * 2.5)
                     final_sfs = ((income * (target_index if target_index > 0 else 1.1)) * 7 * pressure_coeff) / (math.pow(density + 1, 0.7))
                     
-                    # 對齊邏輯：物理空間硬限制
                     if cust_area < 250:
                         level = "高效普及 (eXpress-X)"
                         limit_msg = "⚠️ 空間物理限制：空間不足 250sqft，強制判定為 X 店型以確保營運效率。"
@@ -115,7 +108,7 @@ if check_password():
                         level = "品牌指標 (Model-M)" if final_sfs >= 15000 else "社區標準 (Community-C)" if final_sfs >= 8500 else "高效普及 (eXpress-X)"
                         limit_msg = "✅ 空間充足：店型定位與 SFS 指數對齊。"
 
-                    # --- 渲染結果看板 ---
+                    # 渲染結果
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("SFS 戰略總分", f"{final_sfs:.0f}")
                     m2.metric("位置分級", level)
@@ -125,7 +118,6 @@ if check_password():
 
                     st.divider()
                     
-                    # 構建全數據包供 AI 分析
                     strategic_packet = {
                         "SFS總分": round(final_sfs),
                         "位置分級": level,
@@ -139,46 +131,55 @@ if check_password():
                         "競爭密度": f"{density} 家/km"
                     }
 
-                    # --- 地圖照片與 AI 解析 ---
+                    # --- 地圖與 AI 解析區塊 ---
+                    col_map, col_ai = st.columns([1, 1])
+                    with col_map:
+                        map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x640&scale=2&markers=color:red%7C{lat},{lng}&key={G_KEY}"
+                        map_response = requests.get(map_url)
+                        map_bytes = BytesIO(map_response.content)
+                        st.image(map_bytes, use_container_width=True, caption="📍 戰略座標 Retina 掃描")
+                    
                     with col_ai:
-    st.subheader("🤖 Gemini 3 Flash 全維度解析")
-    genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-3-flash-preview')
+                        st.subheader("🤖 Gemini 3 Flash 全維度解析")
+                        genai.configure(api_key=GEMINI_KEY)
+                        model = genai.GenerativeModel('gemini-3-flash-preview')
 
-    # --- 核心優化：根據結果 (M/C/X) 動態定義 AI 任務 ---
-    if "Model (M)" in level:
-        dynamic_task = f"""
-        任務 (Model-M 指標店模式)：
-        1. 【空間基因】：評估物理空間({cust_area}sqft)如何撐起『品牌溢價』？地圖中的雜訊是否損害質感？
-        2. 【設計策略】：如何運用『全屏蔽設計』或特定材質，在 SFS:{round(final_sfs)} 的高價值地段創造純淨的品牌綠洲？
-        3. 【營運與行銷】：如何針對高收入族群({strategic_packet['月收入(中位)']})設計『預約制』或『限量體驗』？
-        """
-    elif "Community (C)" in level:
-        dynamic_task = f"""
-        任務 (Community-C 社區店模式)：
-        1. 【社交診斷】：評估 {cust_area}sqft 是否足以容納社區社交？地圖周邊是否有適合聯名行銷的鄰里基因？
-        2. 【行銷策略】：針對族群比例 {eth}，如何利用 Miffy 或特定聯名活動創造高回購率與打卡動力？
-        3. 【設計與營運】：如何平衡『座位舒適度』與『高峰出杯效率』，以維持 SFS 穩定增長？
-        """
-    else: # eXpress (X)
-        dynamic_task = f"""
-        任務 (eXpress-X 機能店模式)：
-        1. 【效能極大化】：空間僅有 {cust_area}sqft，如何利用『極簡模組』掩蓋擁擠感({pressure_coeff})並提升轉換率？
-        2. 【營運策略】：針對高峰轉換率，如何設計『外送/自取雙動線』以克服空間狹小的物理限制？
-        3. 【設計策略】：如何處理地圖中常見的『街道噪音』，並透過視覺設計提升店鋪在繁忙區域的識別度？
-        """
+                        if "Model (M)" in level:
+                            dynamic_task = f"""
+                            任務 (Model-M 指標店模式)：
+                            1. 【空間基因】：評估物理空間({cust_area}sqft)如何撐起『品牌溢價』？地圖中的雜訊是否損害質感？
+                            2. 【設計策略】：如何運用『全屏蔽設計』或特定材質，在 SFS:{round(final_sfs)} 的高價值地段創造純淨的品牌綠洲？
+                            3. 【營運與行銷】：如何針對高收入族群({strategic_packet['月收入(中位)']})設計『預約制』或『限量體驗』？
+                            """
+                        elif "Community (C)" in level:
+                            dynamic_task = f"""
+                            任務 (Community-C 社區店模式)：
+                            1. 【社交診斷】：評估 {cust_area}sqft 是否足以容納社區社交？地圖周邊是否有適合聯名行銷的鄰里基因？
+                            2. 【行銷策略】：針對族群比例 {eth}，如何利用 Miffy 或特定聯名活動創造高回購率與打卡動力？
+                            3. 【設計與營運】：如何平衡『座位舒適度』與『高峰出杯效率』，以維持 SFS 穩定增長？
+                            """
+                        else: # eXpress (X)
+                            dynamic_task = f"""
+                            任務 (eXpress-X 機能店模式)：
+                            1. 【效能極大化】：空間僅有 {cust_area}sqft，如何利用『極簡模組』掩蓋擁擠感({pressure_coeff})並提升轉換率？
+                            2. 【營運策略】：針對高峰轉換率，如何設計『外送/自取雙動線』以克服空間狹小的物理限制？
+                            3. 【設計策略】：如何處理地圖中常見的『街道噪音』，並透過視覺設計提升店鋪在繁忙區域的識別度？
+                            """
 
-    prompt = f"""
-    你現在是 Sharetea 2026 戰略專家。請根據以下「對齊數據包」與「地圖截圖」進行專屬診斷：
-    
-    【數據包內容】：{strategic_packet}
-    
-    {dynamic_task}
-    
-    請針對【營運】、【行銷】、【設計】三個維度，給予簡易且精準的執行建議。
-    """
-    
-    ai_res = model.generate_content([prompt, Image.open(map_bytes)])
-    st.markdown(ai_res.text)
+                        prompt = f"""
+                        你現在是 Sharetea 2026 戰略專家。請根據以下「對齊數據包」與「地圖截圖」進行專屬診斷：
+                        
+                        【數據包內容】：{strategic_packet}
+                        
+                        {dynamic_task}
+                        
+                        請針對【營運】、【行銷】、【設計】三個維度，給予簡易且精準的執行建議。
+                        """
+                        
+                        ai_res = model.generate_content([prompt, Image.open(map_bytes)])
+                        st.markdown(ai_res.text)
 
-    st.caption("Produced by Marketing Designer. v9.9.5 | 物理決定論與 API 對齊模式。")
+            except Exception as e: 
+                st.error(f"分析異常: {e}")
+
+    st.caption("Produced by Marketing Designer. v9.9.8 | 物理決定論與 API 對齊模式。")
