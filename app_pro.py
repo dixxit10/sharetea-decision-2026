@@ -128,7 +128,7 @@ if st.sidebar.button("啟動戰略診斷"):
             lat = float(parts[0].strip())
             lng = float(parts[1].strip())
             
-            with st.spinner("正在解析地理數據雜訊..."):
+                with st.spinner("正在解析地理數據雜訊..."):
             # --- 1. Google Places API  ---
             search_keywords = "bubble+tea|boba|milk+tea|tea+house"
             place_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=2414&keyword={search_keywords}&key={GOOGLE_KEY}"
@@ -208,6 +208,7 @@ if st.sidebar.button("啟動戰略診斷"):
 # --- 腳註 ---
 
 st.caption("Produced by Marketing Designer. Standard v33 Core Engine. 2026 Strategy Roadmap.")
+
 
 
 
