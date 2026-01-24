@@ -5,6 +5,29 @@ import requests
 import google.generativeai as genai
 from io import BytesIO
 
+
+def check_password():
+    """若輸入正確密碼則回傳 True"""
+    def password_entered():
+        if st.session_state["password"] == "sharetea2026":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.title("🔐 Sharetea 系統門禁")
+        st.text_input("請輸入密碼以開啟分析引擎", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.title("🔐 Sharetea 系統門禁")
+        st.text_input("請輸入密碼以開啟分析引擎", type="password", on_change=password_entered, key="password")
+        st.error("😕 密碼錯誤，請重新輸入。")
+        return False
+    else:
+        return True
+
+if check_password():
 # --- 1. UI & CSS 配置 ---
 st.set_page_config(page_title="Sharetea Express 2026 全方位評估", layout="wide")
 st.markdown("""
@@ -155,3 +178,4 @@ if st.sidebar.button("Execute Strategic Analysis"):
         except Exception as e: st.error(f"Analysis Exception: {e}")
 
 st.caption("Produced by Marketing Designer. v8.4.0 | Reducing Noise. Increasing Clarity.")
+
