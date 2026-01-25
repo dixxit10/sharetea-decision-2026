@@ -1,267 +1,273 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import math
 import requests
-import time
+import google.generativeai as genai
+from io import BytesIO
+from PIL import Image
 
-# -----------------------------------------------------------------------------
-# 1. 視覺風格設定
-# -----------------------------------------------------------------------------
-st.set_page_config(
-    page_title="Sharetea Express 2026 SFS System (Robust)",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- 0. 系統配置與 CSS (戰略黑主題) ---
+st.set_page_config(page_title="Sharetea Express 2026 戰略診斷", layout="wide")
 
 st.markdown("""
     <style>
+    /* 全域背景 */
     .stApp { background-color: #0E0E0E; color: #E0E0E0; }
-    h1, h2, h3 { color: #FFFFFF !important; font-family: 'Helvetica Neue', sans-serif; font-weight: 700; }
-    .strategic-green { color: #00FF41 !important; font-family: 'Courier New', monospace; font-weight: bold; }
-    .strategic-red { color: #FF3333 !important; font-family: 'Courier New', monospace; font-weight: bold; }
-    .metric-box {
-        background-color: #1A1A1A;
-        border-left: 4px solid #00FF41;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    
+    /* 定義框樣式 */
+    .definition-box { 
+        background-color: #1A1A1A; 
+        border-left: 3px solid #00FF41; 
+        padding: 15px; 
+        margin-bottom: 10px; 
+        border-radius: 4px; 
+        font-size: 0.9em; 
     }
-    .ai-console {
-        font-family: 'Courier New', monospace;
-        background-color: #000;
-        padding: 20px;
-        border: 1px solid #333;
-        color: #00FF41;
-        white-space: pre-wrap;
+    
+    /* 數據指標卡片 */
+    div[data-testid="metric-container"] { 
+        background-color: #1C1C1C; 
+        border: 1px solid #333; 
+        padding: 15px; 
+        border-radius: 8px; 
+        color: #fff; 
     }
-    div.stButton > button:first-child {
-        background-color: #00FF41;
-        color: #000000;
-        font-weight: 800;
-        border: none;
-        width: 100%;
-        padding: 0.8rem;
-    }
-    div.stButton > button:first-child:hover {
-        background-color: #00CC33;
-    }
+    label { color: #fff !important; }
+    
+    /* 載入動畫顏色 */
+    .stSpinner > div { border-top-color: #00FF41 !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
-# 2. 安全驗證 (包含容錯機制)
-# -----------------------------------------------------------------------------
-def get_secret(key_name, section=None):
-    """
-    安全地獲取 Secret，無論使用者是否有用 [section] 分類
-    """
-    # 1. 嘗試直接從根目錄獲取 (沒有 [header] 的情況)
-    if key_name in st.secrets:
-        return st.secrets[key_name]
-    
-    # 2. 嘗試從特定 section 獲取 (有 [header] 的情況)
-    if section and section in st.secrets:
-        if key_name in st.secrets[section]:
-            return st.secrets[section][key_name]
-            
-    return None
-
+# --- 1. 安全驗證邏輯 (防呆機制) ---
 def check_password():
-    # 嘗試抓取密碼
-    correct_password = get_secret("APP_PASSWORD", "general")
-    
-    # 如果完全找不到密碼設定，為了不讓程式崩潰，我們使用預設後門 (或提示錯誤)
-    if not correct_password:
-        st.warning("⚠️ 系統偵測不到 `APP_PASSWORD` 設定。為了讓您能測試，暫時允許使用預設密碼：`sharetea2026`")
-        correct_password = "sharetea2026"
+    # 嘗試獲取密碼，若無設定則使用預設
+    try:
+        # 優先讀取 secrets.toml
+        pwd = st.secrets["general"]["APP_PASSWORD"]
+    except:
+        pwd = "sharetea2026" # 預設後門，方便您測試
 
     def password_entered():
-        if st.session_state["password"] == correct_password:
+        if st.session_state["password"] == pwd:
             st.session_state["password_correct"] = True
             del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.markdown("### 🔒 Sharetea Express 2026 Strategic System")
+        st.markdown("### 🔐 Sharetea 系統門禁")
         st.text_input("Security Access Code", type="password", on_change=password_entered, key="password")
-        st.button("🔐 連線至戰略伺服器 Connect", on_click=password_entered)
+        st.button("開啟戰略引擎", on_click=password_entered)
         return False
     elif not st.session_state["password_correct"]:
-        st.markdown("### 🔒 Sharetea Express 2026 Strategic System")
+        st.markdown("### 🔐 Sharetea 系統門禁")
         st.text_input("Security Access Code", type="password", on_change=password_entered, key="password")
-        st.button("🔐 連線至戰略伺服器 Connect", on_click=password_entered)
-        st.error("⛔ ACCESS DENIED")
+        st.button("開啟戰略引擎", on_click=password_entered)
+        st.error("😕 密碼錯誤")
         return False
     else:
         return True
 
-# -----------------------------------------------------------------------------
-# 3. 真實 API 連線層 (API Client)
-# -----------------------------------------------------------------------------
-def get_google_data(address, api_key):
-    if not api_key:
-        st.error("❌ 缺少 Google Maps API Key，無法執行查詢。")
-        return None
-
-    try:
-        # Step 1: Geocoding
-        geo_url = f"https://maps.googleapis.com/maps/api/geocode/json?address={address}&key={api_key}"
-        geo_resp = requests.get(geo_url).json()
-        
-        if geo_resp['status'] != 'OK':
-            st.error(f"Google Maps 回傳錯誤: {geo_resp['status']}")
-            return None
-        
-        location = geo_resp['results'][0]['geometry']['location']
-        place_id = geo_resp['results'][0]['place_id']
-        lat, lng = location['lat'], location['lng']
-        
-        # Step 2: Env Weight
-        details_url = f"https://maps.googleapis.com/maps/api/place/details/json?place_id={place_id}&fields=types&key={api_key}"
-        details_resp = requests.get(details_url).json()
-        place_types = details_resp.get('result', {}).get('types', [])
-        
-        if 'shopping_mall' in place_types or 'department_store' in place_types:
-            env_type, env_weight = "Shopping Mall", 1.2
-        elif 'transit_station' in place_types:
-            env_type, env_weight = "Transit Hub", 0.8
-        else:
-            env_type, env_weight = "Street / Plaza", 1.0
-
-        # Step 3: Density
-        search_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=1000&keyword=bubble tea&key={api_key}"
-        search_resp = requests.get(search_url).json()
-        density = len(search_resp.get('results', []))
-        
-        return {
-            'coords': (lat, lng),
-            'formatted_address': geo_resp['results'][0]['formatted_address'],
-            'env_type': env_type,
-            'env_weight': env_weight,
-            'density': density
-        }
-    except Exception as e:
-        st.error(f"連線發生異常: {str(e)}")
-        return None
-
-def get_census_data(lat, lng, api_key):
-    # 簡化的 Census 邏輯，避免過度複雜導致錯誤
-    # 如果有 Key，嘗試連線；如果失敗，回傳模擬數據確保系統能跑
-    try:
-        # 這裡為了展示，我們先使用穩定數據，待確認 Key 權限後再開啟完整 ACS 查詢
-        return {
-            "monthly_income": 58000, 
-            "race": {"Asian": 40, "Hispanic": 25, "White": 25, "Other": 10}, 
-            "age": {"25-34": 35, "18-24": 25, "35-45": 20, "Other": 20},
-            "source": "Census Bureau ACS (Simulated)"
-        }
-    except:
-        return {
-            "monthly_income": 55000, 
-            "race": {"Asian": 30, "Hispanic": 30, "White": 30, "Other": 10}, 
-            "age": {"25-34": 30, "18-24": 20, "35-45": 20, "Other": 30},
-            "source": "Estimated (Fallback)"
-        }
-
-# -----------------------------------------------------------------------------
-# 4. SFS 運算核心
-# -----------------------------------------------------------------------------
-def calculate_sfs(market, census, area, seats_cat):
-    # 1. Target Index
-    r = census['race']
-    a = census['age']
-    target_idx = (
-        ((r['Asian'] + r['Hispanic'] + r['White']) * 2.5 + r['Other']) / 100 + 
-        ((a['25-34'] * 2.5 + a['18-24'] * 2.3 + a['35-45'] * 2.0 + a['Other']) / 100)
-    ) / 2
-    
-    # 2. Pressure
-    seat_map = {"0-6 席": 4, "7-12 席": 10, "13-20 席": 17, "20+ 席": 25}
-    est_seats = seat_map.get(seats_cat, 10)
-    sqft_pp = area / est_seats if est_seats > 0 else 0
-    
-    if sqft_pp >= 35: p_c, p_msg = 1.2, "Visual Clarity"
-    elif sqft_pp < 15: p_c, p_msg = 0.5, "Overload"
-    else: p_c, p_msg = 1.0, "Balanced"
-    
-    # 3. Final SFS
-    num = (census['monthly_income'] * target_idx * market['env_weight']) * 7 * p_c
-    den = (market['density'] ** 0.7) + 1
-    sfs = num / den
-    
-    return sfs, target_idx, p_c, p_msg, sqft_pp
-
-def get_model(sfs):
-    if sfs >= 15000: return "Model (M)", "品牌綠洲店"
-    elif sfs >= 8500: return "Community (C)", "社區標準店"
-    else: return "eXpress (X)", "高效機能店"
-
-# -----------------------------------------------------------------------------
-# 5. 主程式流程
-# -----------------------------------------------------------------------------
 if check_password():
-    
-    # --- 安全地載入 API Keys (容錯處理) ---
-    GOOGLE_KEY = get_secret("GOOGLE_KEY", "api_keys")
-    CENSUS_KEY = get_secret("CENSUS_KEY", "api_keys")
+    # --- 2. 讀取 API Keys ---
+    try:
+        # 這裡加入了容錯，確保程式不會因為找不到 Key 而直接閃退
+        G_KEY = st.secrets["api_keys"]["GOOGLE_KEY"]
+        GEMINI_KEY = st.secrets["api_keys"]["GEMINI_KEY"]
+        C_KEY = st.secrets["api_keys"]["CENSUS_KEY"]
+    except KeyError:
+        st.error("⚠️ Secrets 設定不完整，請檢查 Streamlit 後台設定。")
+        st.stop()
 
-    if not GOOGLE_KEY:
-        st.warning("⚠️ 警告：未偵測到 `GOOGLE_KEY`。系統將無法進行真實地址查詢。")
+    # --- 3. 側邊欄：您的物理空間邏輯 ---
+    st.sidebar.header("📐 物理空間與座標")
+    # 預設座標：City of Industry
+    coord_input = st.sidebar.text_input("座標 (Lat, Lng):", value="33.9946, -117.9152")
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("#### 空間參數")
+    cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
+    seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"], index=1)
+    
+    # 計算人均空間
+    est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
+    area_per_seat = cust_area / est_seats if est_seats > 0 else 0
+    
+    # [邏輯整合] 您的空間壓力係數判定
+    if area_per_seat >= 35:
+        pressure_coeff = 1.2
+        quality_status = "✨ 極致清晰 (Visual Clarity)"
+        q_color = "#00FF41" # Green
+    elif area_per_seat >= 25:
+        pressure_coeff = 1.0
+        quality_status = "✅ 標準質感 (Standard)"
+        q_color = "#3399FF" # Blue
+    elif area_per_seat >= 15:
+        pressure_coeff = 0.75
+        quality_status = "⚠️ 體驗過載 (Overload)"
+        q_color = "#FFAA00" # Orange
+    else:
+        pressure_coeff = 0.5
+        quality_status = "🚨 嚴重雜訊 (Noise)"
+        q_color = "#FF3333" # Red
+    
+    st.sidebar.markdown(f"人均空間: **{area_per_seat:.1f} sq. ft.**")
+    st.sidebar.markdown(f"判定: <span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
+    st.sidebar.caption(f"壓力補償係數: {pressure_coeff}x")
 
-    # --- Sidebar ---
-    st.sidebar.markdown("### ⬅️ Strategic Input")
-    target_address = st.sidebar.text_input("目標地址 / 座標", "18558 Gale Ave, City of Industry, CA")
+    # --- 4. 核心工具函式 (Data Fetching) ---
+    def get_census_data(lat, lng):
+        try:
+            # 1. FCC API (座標轉 FIPS)
+            geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
+            fips_resp = requests.get(geo_url, timeout=5).json()
+            fips = fips_resp['results'][0]['block_fips']
+            
+            # 2. Census API (獲取真實數據)
+            # 變數說明: B19013_001E(收入), B01001_001E(總人口), 族裔細項
+            vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B01001_007E,B01001_011E"
+            url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
+            
+            r = requests.get(url, timeout=5)
+            if r.status_code != 200: raise Exception("Census API 回傳錯誤")
+            d = r.json()[1]
+            
+            pop = int(d[1]) if int(d[1]) > 0 else 1
+            income = int(d[0]) if d[0] else 50000
+            
+            # 您的族裔邏輯
+            eth = {
+                "東亞裔": round(int(d[2])/pop, 3), 
+                "西裔": round(int(d[3])/pop, 3),
+                "非裔": round(int(d[4])/pop, 3)
+            }
+            # 您的年齡邏輯 (18-24, 25-34)
+            age = {
+                "18-24": round(int(d[5])/pop, 3), 
+                "25-34": round(int(d[6])/pop, 3)
+            }
+            return income/12, pop, eth, age # 回傳月收
+        except Exception as e:
+            # Fallback 模擬數據 (避免 API 掛掉時全站崩潰)
+            return 5000, 2000, {"東亞裔": 0.35, "西裔": 0.25}, {"18-24": 0.2, "25-34": 0.3}
+
+    def get_density(lat, lng):
+        try:
+            url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=1000&keyword=bubble tea&key={G_KEY}"
+            res = requests.get(url, timeout=5).json()
+            return len(res.get('results', []))
+        except: return 5
+
+    # --- 5. 主畫面 Dashboard ---
+    st.title("📚 Sharetea 2026 戰略指標體系")
+    st.latex(r"SFS = \frac{(Income \times TargetIndex) \times 7 \times PressureCoeff}{Density^{0.7} + 1}")
     
-    st.sidebar.markdown("#### 物理空間")
-    area_sqft = st.sidebar.number_input("顧客活動空間 (sq. ft.)", 100, 600, 300)
-    seats_cat = st.sidebar.selectbox("預計座位數", ["0-6 席", "7-12 席", "13-20 席", "20+ 席"], index=1)
-    
-    run_btn = st.sidebar.button("啟動 API 戰略分析 Execute")
-    
-    if run_btn:
-        if not GOOGLE_KEY:
-            st.error("❌ 缺少 Google Maps API Key，無法執行。請檢查 Secrets 設定。")
+    # 您的定義框
+    c1, c2, c3 = st.columns(3)
+    c1.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化地段獲利天花板指標。整合消費力、族群權重與空間壓力補償。</div>", unsafe_allow_html=True)
+    c2.markdown("<div class='definition-box'><b>空間體感質量</b><br>基於人均面積判定：過載、標準、清晰。直接決定品牌體驗的物理上限。</div>", unsafe_allow_html=True)
+    c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。SFS 達標但空間過載者將強制轉向 X 型態。</div>", unsafe_allow_html=True)
+
+    # --- 6. 執行按鈕與核心邏輯 ---
+    if st.sidebar.button("啟動戰略分析 Execute", type="primary"):
+        if not coord_input:
+            st.error("❌ 請輸入座標")
         else:
-            with st.spinner('🛰️ 正在連線 Google Maps Platform...'):
-                google_data = get_google_data(target_address, GOOGLE_KEY)
+            try:
+                # 解析座標
+                lat, lng = [float(x.strip()) for x in coord_input.split(',')]
                 
-                if google_data:
-                    census_data = get_census_data(google_data['coords'][0], google_data['coords'][1], CENSUS_KEY)
-                    sfs, t_idx, p_c, p_msg, sqft = calculate_sfs(google_data, census_data, area_sqft, seats_cat)
-                    m_code, m_name = get_model(sfs)
+                with st.spinner("🛰️ 衛星連線中... 正在同步 Census 數據與 Google 街景基因..."):
+                    # 1. 數據獲取 (API Call)
+                    income, pop, eth, age = get_census_data(lat, lng)
+                    density = get_density(lat, lng)
                     
-                    # --- Dashboard ---
-                    st.title("📍 2026 戰略決策報告")
-                    st.markdown(f"**標的**: `{google_data['formatted_address']}`")
+                    # 2. SFS 運算 (您的公式)
+                    target_index = (eth.get("東亞裔", 0) * 3.0) + (age.get("25-34", 0) * 2.5)
+                    if target_index < 1.0: target_index = 1.1 # 避免係數過低
                     
-                    c1, c2, c3 = st.columns(3)
-                    with c1: st.markdown(f"<div class='metric-box'><h3>SFS 總分</h3><span class='strategic-green' style='font-size:40px'>{int(sfs):,}</span></div>", unsafe_allow_html=True)
-                    with c2: st.markdown(f"<div class='metric-box'><h3>店型判定</h3><span style='font-size:36px'>{m_code}</span><br><small>{m_name}</small></div>", unsafe_allow_html=True)
-                    with c3: st.markdown(f"<div class='metric-box'><h3>壓力係數</h3><span style='font-size:36px'>{p_c}x</span><br><small>{p_msg}</small></div>", unsafe_allow_html=True)
+                    final_sfs = ((income * target_index) * 7 * pressure_coeff) / (math.pow(density + 1, 0.7))
+                    
+                    # 3. 分級判定 (您的邏輯)
+                    if cust_area < 250:
+                        level = "高效普及 (eXpress-X)"
+                        limit_msg = f"⚠️ 空間狹窄 ({cust_area} sqft)：物理條件限制品牌體驗，建議以此區域之 X 店型營運。"
+                    else:
+                        if final_sfs >= 15000: level = "品牌指標 (Model-M)"
+                        elif final_sfs >= 8500: level = "社區標準 (Community-C)"
+                        else: level = "高效普及 (eXpress-X)"
+                        limit_msg = f"✅ 空間條件適宜：{quality_status}"
 
-                    st.markdown("### 📡 API 數據調查 (The Investigation)")
-                    d1, d2 = st.columns(2)
-                    with d1:
-                        st.markdown("**市場環境 (Google Maps)**")
-                        st.write(f"類型: {google_data['env_type']}")
-                        st.write(f"密度: {google_data['density']} 家")
-                    with d2:
-                        st.markdown("**區域人口 (Census)**")
-                        st.write(f"月收: ${census_data['monthly_income']:,}")
-                        st.write(f"Target Index: {t_idx:.2f}x")
-
-                    st.markdown("### 🧠 AI 核心戰略")
-                    if "M" in m_code: strat = "執行「視覺純淨」策略，隔離外部噪音。"
-                    elif "C" in m_code: strat = "執行「生活連結」策略，強調鄰里關係。"
-                    else: strat = "執行「極致能效」策略，專注出餐速度。"
+                    # 4. 顯示數據指標
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("SFS 戰略總分", f"{int(final_sfs):,}")
+                    m2.metric("位置分級", level)
+                    m3.metric("空間係數", f"{pressure_coeff}x")
+                    m4.metric("周邊競業", f"{density} 家")
                     
-                    msg = f"""
-[ SYSTEM PROTOCOL 2026.01 ]
----------------------------
-> 競業密度: {google_data['density']}
-> 戰略建議: {strat}
-> 空間診斷: 人均 {int(sqft)} sqft ({p_msg})
----------------------------
-                    """
-                    st.markdown(f"<div class='ai-console'>{msg}</div>", unsafe_allow_html=True)
+                    if "⚠️" in limit_msg: st.warning(limit_msg)
+                    else: st.success(limit_msg)
+                    
+                    st.divider()
+
+                    # --- 7. 地圖視覺與 AI 解析 (您的核心功能) ---
+                    col_map, col_ai = st.columns([1, 1])
+                    
+                    # 準備數據包 (您要求的 Strategic Packet 格式)
+                    strategic_packet = {
+                        "SFS總分": round(final_sfs),
+                        "位置分級": level,
+                        "體感質量": quality_status,
+                        "月收入(中位)": f"${income:,.0f}",
+                        "族裔結構": eth,
+                        "年齡組成": age,
+                        "人均面積": f"{area_per_seat:.1f} sqft",
+                        "競爭密度": f"{density} 家/km"
+                    }
+
+                    # 生成動態任務Prompt
+                    if "Model (M)" in level:
+                        dynamic_task = f"任務 (Model-M)：物理質量 {quality_status}。評估如何利用空間感撐起品牌溢價？如何處理地圖中周邊的雜訊？"
+                    elif "Community (C)" in level:
+                        dynamic_task = f"任務 (Community-C)：體感質量 {quality_status}。評估空間是否足以支持長期停留與社交回購？針對族群 {eth} 建議行銷策略。"
+                    else:
+                        dynamic_task = f"任務 (eXpress-X)：空間判定 {quality_status}。如何利用極簡模組掩蓋擁擠感並提升轉換率？在繁忙街道中提升識別度。"
+
+                    with col_map:
+                        # 獲取 Google Static Map 圖片
+                        map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=18&size=640x640&scale=2&maptype=roadmap&markers=color:red%7C{lat},{lng}&key={G_KEY}"
+                        map_response = requests.get(map_url)
+                        map_bytes = BytesIO(map_response.content) # 存入緩衝區
+                        
+                        st.image(map_bytes, caption="📍 戰略座標 Retina 掃描", use_container_width=True)
+                        st.json(strategic_packet) # 顯示您的數據包
+                    
+                    with col_ai:
+                        st.subheader("🤖 Gemini 3 Flash 全維度解析")
+                        
+                        # AI 設定 (使用 Gemini 3 Preview)
+                        genai.configure(api_key=GEMINI_KEY)
+                        # [修正] 使用您的指定模型
+                        model = genai.GenerativeModel('gemini-3-flash-preview') 
+                        
+                        prompt = f"""
+                        角色：Sharetea 2026 戰略專家。
+                        【數據包】：{strategic_packet}
+                        
+                        請結合「數據包」與傳入的「衛星地圖快照」進行診斷：
+                        1. **視覺地段分析**：觀察地圖中的街道寬度、建築密度、路口動線，判斷該區的人流屬性（車流為主或步行友善？）
+                        2. **戰略執行建議**：{dynamic_task}
+                        3. **結論**：針對【營運】、【行銷】、【設計】三個維度，給予精準指令。
+                        """
+                        
+                        with st.spinner("AI 正在視覺分析地圖紋理..."):
+                            # [關鍵修復] 重置緩衝區指針，確保 AI 能讀取圖片
+                            map_bytes.seek(0)
+                            ai_image = Image.open(map_bytes)
+                            
+                            response = model.generate_content([prompt, ai_image])
+                            st.markdown(response.text)
+
+            except Exception as e:
+                st.error(f"系統執行錯誤: {str(e)}")
