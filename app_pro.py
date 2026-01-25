@@ -114,40 +114,40 @@ if check_password():
     )
 
     # 3.2 地段基因
-    st.sidebar.markdown("#### 地段基因 (Macro)")
-    env_type = st.sidebar.selectbox(
-        "選擇地段類型:",
-        ["Shopping Mall", "Community", "Plaza", "Main Street", "Transit Hub", "Food Court", "Office"]
-    )
-    env_mapping = {
-        "Shopping Mall": 1.2, "Community": 1.0, "Plaza": 1.0, 
-        "Main Street": 0.8, "Transit Hub": 0.8, "Food Court": 0.8, "Office": 0.8
-    }
-    env_weight = env_mapping[env_type]
+    # st.sidebar.markdown("#### 地段基因 (Macro)")
+    # env_type = st.sidebar.selectbox(
+    #     "選擇地段類型:",
+    #     ["Shopping Mall", "Community", "Plaza", "Main Street", "Transit Hub", "Food Court", "Office"]
+    # )
+    # env_mapping = {
+    #     "Shopping Mall": 1.2, "Community": 1.0, "Plaza": 1.0, 
+    #     "Main Street": 0.8, "Transit Hub": 0.8, "Food Court": 0.8, "Office": 0.8
+    # }
+    # env_weight = env_mapping[env_type]
     
     # 3.3 物理空間
-    st.sidebar.markdown("#### 物理空間 (Design Ref)")
-    cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
-    seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"], index=1)
+    # st.sidebar.markdown("#### 物理空間 (Design Ref)")
+    # cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
+    # seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"], index=1)
     
-    est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
-    area_per_seat = cust_area / est_seats if est_seats > 0 else 0
+    # est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
+    # area_per_seat = cust_area / est_seats if est_seats > 0 else 0
     
-    if area_per_seat >= 35:
-        quality_status = "✨ 極致清晰 (Visual Clarity)"
-        q_color = "#00FF41"
-    elif area_per_seat >= 25:
-        quality_status = "✅ 標準質感 (Standard)"
-        q_color = "#3399FF"
-    elif area_per_seat >= 15:
-        quality_status = "⚠️ 體驗過載 (Overload)"
-        q_color = "#FFAA00"
-    else:
-        quality_status = "🚨 嚴重雜訊 (Noise)"
-        q_color = "#FF3333"
+    # if area_per_seat >= 35:
+    #     quality_status = "✨ 極致清晰 (Visual Clarity)"
+    #     q_color = "#00FF41"
+    # elif area_per_seat >= 25:
+    #     quality_status = "✅ 標準質感 (Standard)"
+    #     q_color = "#3399FF"
+    # elif area_per_seat >= 15:
+    #     quality_status = "⚠️ 體驗過載 (Overload)"
+    #     q_color = "#FFAA00"
+    # else:
+    #     quality_status = "🚨 嚴重雜訊 (Noise)"
+    #     q_color = "#FF3333"
     
-    st.sidebar.markdown(f"設計參考: <span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
-    st.sidebar.caption(f"地段權重: {env_weight}x")
+    # st.sidebar.markdown(f"設計參考: <span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
+    # st.sidebar.caption(f"地段權重: {env_weight}x")
 
     st.sidebar.markdown("---")
     execute_btn = st.sidebar.button("啟動戰略分析 Execute", type="primary")
@@ -230,13 +230,13 @@ if check_password():
 
     # --- 5. 主介面 ---
     st.title("📚 Sharetea 2026 戰略指標體系")
-    st.latex(r"SFS = \frac{(Income \times TargetIndex \times EnvWeight) \times 7}{Density^{0.7} + 1}")
+    # st.latex(r"SFS = \frac{(Income \times TargetIndex \times EnvWeight) \times 7}{Density^{0.7} + 1}")
     
     # 定義說明
-    c1, c2, c3 = st.columns(3)
-    c1.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>核心：亞裔/西裔/白人(2.5x)。25-34歲(2.5x) / 18-24(2.3x) / 35-45(2.0x)。</div>", unsafe_allow_html=True)
-    c2.markdown("<div class='definition-box'><b>空間體感質量 (參考)</b><br>設計師參考指標。基於人均面積判定：過載/標準/清晰。</div>", unsafe_allow_html=True)
-    c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。</div>", unsafe_allow_html=True)
+    # c1, c2, c3 = st.columns(3)
+    # c1.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>核心：亞裔/西裔/白人(2.5x)。25-34歲(2.5x) / 18-24(2.3x) / 35-45(2.0x)。</div>", unsafe_allow_html=True)
+    # c2.markdown("<div class='definition-box'><b>空間體感質量 (參考)</b><br>設計師參考指標。基於人均面積判定：過載/標準/清晰。</div>", unsafe_allow_html=True)
+    # c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。</div>", unsafe_allow_html=True)
 
     # --- 6. 執行邏輯 ---
     if execute_btn:
@@ -296,47 +296,49 @@ if check_password():
         ) / 100
         
         # 綜合 Target Index
-        target_index = (eth_score_weighted + age_score_weighted) / 2
-        if target_index < 1.0: target_index = 1.0
+        # target_index = (eth_score_weighted + age_score_weighted) / 2
+        # if target_index < 1.0: target_index = 1.0
         
         # SFS 公式
-        final_sfs = ((income * target_index * env_weight) * 7) / (math.pow(density + 1, 0.7))
+        # final_sfs = ((income * target_index * env_weight) * 7) / (math.pow(density + 1, 0.7))
         
         # 分級
-        if final_sfs >= 15000: level = "品牌指標 (Model-M)"
-        elif final_sfs >= 8500: level = "社區標準 (Community-C)"
-        else: level = "高效普及 (eXpress-X)"
+        # if final_sfs >= 15000: level = "品牌指標 (Model-M)"
+        # elif final_sfs >= 8500: level = "社區標準 (Community-C)"
+        # else: level = "高效普及 (eXpress-X)"
 
         # 儀表板
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("SFS 戰略總分", f"{int(final_sfs):,}", delta="地段潛力")
-        m2.metric("位置分級", level, delta_color="off")
+        # m1, m2, m3, m4, m5 = st.columns(5)
+        m3, m5 = st.columns(5)
+        # m1.metric("SFS 戰略總分", f"{int(final_sfs):,}", delta="地段潛力")
+        # m2.metric("位置分級", level, delta_color="off")
         m3.metric("月消費力", f"${int(income):,}")
-        m4.metric("地段基因", f"{env_type} ({env_weight}x)")
+        # m4.metric("地段基因", f"{env_type} ({env_weight}x)")
         m5.metric("周邊競業", f"{density} 家")
         
         st.caption(f"📍 分析標的：{data['address']}")
-        st.caption(f"📊 Target Index: {target_index:.2f}x (核心族群加權)")
+        # st.caption(f"📊 Target Index: {target_index:.2f}x (核心族群加權)")
         st.divider()
         
         # 圖表區
-        col_charts1, col_charts2, col_charts3 = st.columns(3)
+        col_charts1, col_charts2 = st.columns(3)
+        # col_charts1, col_charts2, col_charts3 = st.columns(3)
         with col_charts1:
             st.markdown("**📊 族群組成 (Ethnic %)**")
             st.bar_chart(pd.DataFrame(eth.items(), columns=["族裔", "比例"]).set_index("族裔"), color="#00FF41")
         with col_charts2:
             st.markdown("**📊 年齡結構 (Age %)**")
             st.bar_chart(pd.DataFrame(age.items(), columns=["年齡層", "比例"]).set_index("年齡層"), color="#3399FF")
-        with col_charts3:
-            st.markdown("**📐 空間設計診斷 (Design Ref)**")
-            st.metric("人均面積", f"{area_per_seat:.1f} sqft")
-            progress_val = min(area_per_seat / 40.0, 1.0)
-            st.progress(progress_val)
-            st.caption(f"體感質量: {quality_status}")
-            if area_per_seat < 15:
-                st.markdown("<span style='color:red'>⚠️ 空間嚴重過載</span>", unsafe_allow_html=True)
-            elif area_per_seat > 30:
-                st.markdown("<span style='color:#00FF41'>✅ 空間充裕</span>", unsafe_allow_html=True)
+        # with col_charts3:
+        #     st.markdown("**📐 空間設計診斷 (Design Ref)**")
+        #     st.metric("人均面積", f"{area_per_seat:.1f} sqft")
+        #     progress_val = min(area_per_seat / 40.0, 1.0)
+        #     st.progress(progress_val)
+        #     st.caption(f"體感質量: {quality_status}")
+        #     if area_per_seat < 15:
+        #         st.markdown("<span style='color:red'>⚠️ 空間嚴重過載</span>", unsafe_allow_html=True)
+        #     elif area_per_seat > 30:
+        #         st.markdown("<span style='color:#00FF41'>✅ 空間充裕</span>", unsafe_allow_html=True)
 
         st.divider()
 
@@ -344,13 +346,13 @@ if check_password():
         if execute_btn: 
             packet = {
                 "地址": data['address'],
-                "SFS": int(final_sfs),
-                "分級": level,
-                "地段": env_type,
+                # "SFS": int(final_sfs),
+                # "分級": level,
+                # "地段": env_type,
                 "月收": f"${income:,.0f}",
                 "密度": density,
                 "族裔": eth,
-                "空間診斷": f"人均 {area_per_seat} sqft ({quality_status})"
+                # "空間診斷": f"人均 {area_per_seat} sqft ({quality_status})"
             }
             
             map_bytes = None
@@ -391,6 +393,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
