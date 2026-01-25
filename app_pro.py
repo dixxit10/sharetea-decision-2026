@@ -114,40 +114,40 @@ if check_password():
     )
 
     # 3.2 地段基因
-    st.sidebar.markdown("#### 地段基因 (Macro)")
-    env_type = st.sidebar.selectbox(
-        "選擇地段類型:",
-        ["Shopping Mall", "Community", "Plaza", "Main Street", "Transit Hub", "Food Court", "Office"]
-    )
-    env_mapping = {
-        "Shopping Mall": 1.2, "Community": 1.0, "Plaza": 1.0, 
-        "Main Street": 0.8, "Transit Hub": 0.8, "Food Court": 0.8, "Office": 0.8
-    }
-    env_weight = env_mapping[env_type]
+    # st.sidebar.markdown("#### 地段基因 (Macro)")
+    # env_type = st.sidebar.selectbox(
+    #     "選擇地段類型:",
+    #     ["Shopping Mall", "Community", "Plaza", "Main Street", "Transit Hub", "Food Court", "Office"]
+    # )
+    # env_mapping = {
+    #     "Shopping Mall": 1.2, "Community": 1.0, "Plaza": 1.0, 
+    #     "Main Street": 0.8, "Transit Hub": 0.8, "Food Court": 0.8, "Office": 0.8
+    # }
+    # env_weight = env_mapping[env_type]
     
     # 3.3 物理空間
-    st.sidebar.markdown("#### 物理空間 (Design Ref)")
-    cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
-    seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"], index=1)
+    # st.sidebar.markdown("#### 物理空間 (Design Ref)")
+    # cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
+    # seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"], index=1)
     
-    est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
-    area_per_seat = cust_area / est_seats if est_seats > 0 else 0
+    # est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
+    # area_per_seat = cust_area / est_seats if est_seats > 0 else 0
     
-    if area_per_seat >= 35:
-        quality_status = "✨ 極致清晰 (Visual Clarity)"
-        q_color = "#00FF41"
-    elif area_per_seat >= 25:
-        quality_status = "✅ 標準質感 (Standard)"
-        q_color = "#3399FF"
-    elif area_per_seat >= 15:
-        quality_status = "⚠️ 體驗過載 (Overload)"
-        q_color = "#FFAA00"
-    else:
-        quality_status = "🚨 嚴重雜訊 (Noise)"
-        q_color = "#FF3333"
+    # if area_per_seat >= 35:
+    #     quality_status = "✨ 極致清晰 (Visual Clarity)"
+    #     q_color = "#00FF41"
+    # elif area_per_seat >= 25:
+    #     quality_status = "✅ 標準質感 (Standard)"
+    #     q_color = "#3399FF"
+    # elif area_per_seat >= 15:
+    #     quality_status = "⚠️ 體驗過載 (Overload)"
+    #     q_color = "#FFAA00"
+    # else:
+    #     quality_status = "🚨 嚴重雜訊 (Noise)"
+    #     q_color = "#FF3333"
     
-    st.sidebar.markdown(f"設計參考: <span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
-    st.sidebar.caption(f"地段權重: {env_weight}x")
+    # st.sidebar.markdown(f"設計參考: <span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
+    # st.sidebar.caption(f"地段權重: {env_weight}x")
 
     st.sidebar.markdown("---")
     execute_btn = st.sidebar.button("啟動戰略分析 Execute", type="primary")
@@ -391,5 +391,6 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
