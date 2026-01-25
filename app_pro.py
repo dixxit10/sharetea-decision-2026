@@ -6,6 +6,8 @@ import google.generativeai as genai
 from io import BytesIO
 from PIL import Image
 
+
+print("start123")
 # --- 0. 系統配置 ---
 st.set_page_config(page_title="Sharetea Express 2026 戰略診斷", layout="wide")
 
@@ -398,6 +400,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
