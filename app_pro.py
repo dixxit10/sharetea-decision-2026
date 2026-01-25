@@ -32,34 +32,39 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 1. 安全驗證邏輯 ---
+# --- 1. 安全驗證邏輯 (修復 KeyError) ---
 def check_password():
-    # 容錯讀取密碼
+    # 容錯讀取 Secret
     try:
         pwd = st.secrets["general"]["APP_PASSWORD"]
     except:
         pwd = "sharetea2026" 
 
     def password_entered():
-        if st.session_state["password"] == pwd:
+        # [關鍵修復] 使用 .get() 避免 KeyError，如果找不到 key 則回傳空字串
+        entered = st.session_state.get("password", "")
+        if entered == pwd:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]
+            # 安全刪除密碼緩存
+            if "password" in st.session_state:
+                del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
-    if "password_correct" not in st.session_state:
-        st.markdown("### 🔐 Sharetea 系統門禁")
-        st.text_input("Security Access Code", type="password", on_change=password_entered, key="password")
-        st.button("開啟戰略引擎", on_click=password_entered)
-        return False
-    elif not st.session_state["password_correct"]:
-        st.markdown("### 🔐 Sharetea 系統門禁")
-        st.text_input("Security Access Code", type="password", on_change=password_entered, key="password")
-        st.button("開啟戰略引擎", on_click=password_entered)
-        st.error("😕 密碼錯誤")
-        return False
-    else:
+    # 檢查是否已登入
+    if st.session_state.get("password_correct", False):
         return True
+
+    # 顯示登入介面
+    st.markdown("### 🔐 Sharetea 系統門禁")
+    st.text_input("Security Access Code", type="password", on_change=password_entered, key="password")
+    st.button("開啟戰略引擎", on_click=password_entered)
+    
+    # 錯誤提示
+    if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+        st.error("😕 密碼錯誤")
+        
+    return False
 
 if check_password():
     # --- 2. 讀取 API Keys ---
@@ -197,13 +202,13 @@ if check_password():
     c2.markdown("<div class='definition-box'><b>空間體感質量</b><br>基於人均面積判定：過載、標準、清晰。直接決定品牌體驗的物理上限。</div>", unsafe_allow_html=True)
     c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。SFS 達標但空間過載者將強制轉向 X 型態。</div>", unsafe_allow_html=True)
 
-    # --- 6. 執行邏輯 (平面化結構 - 防止 SyntaxError) ---
+    # --- 6. 執行邏輯 ---
     if st.sidebar.button("啟動戰略分析 Execute", type="primary"):
         
         # 1. 驗證輸入
         if not location_input:
             st.error("❌ 請輸入地址或座標")
-            st.stop() # 停止執行，避免巢狀縮排
+            st.stop()
 
         # 2. 解析位置
         with st.spinner("🛰️ 正在解析地址..."):
