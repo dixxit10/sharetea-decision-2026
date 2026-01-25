@@ -5,7 +5,7 @@ import requests
 import google.generativeai as genai
 from io import BytesIO
 from PIL import Image
-
+import traceback  # 新增：用於顯示詳細錯誤
 
 print("start123")
 # --- 0. 系統配置 ---
@@ -184,43 +184,83 @@ if check_password():
             'age': {'18-24': 15.0, '25-34': 25.0, '35-45': 20.0, '其他': 40.0},
             'source': "Estimated (API Unavailable)"
         }
-        if not C_KEY: return default_data
+        
+        # 1. 檢查 API Key
+        if not C_KEY: 
+            print("❌ 錯誤：未檢測到 CENSUS_KEY")
+            return default_data
         
         try:
-            print(1)
+            print(f"📡 步驟 1: 呼叫 FCC API 取得 FIPS (Lat: {lat}, Lng: {lng})")
             geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
-            fips_resp = requests.get(geo_url, timeout=5).json()
-            if not fips_resp.get('results'): return default_data
-            fips = fips_resp['results'][0]['block_fips']
-            print(2)
-            vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B03002_003E,B01001_007E,B01001_011E"
-            # url = f"https://api.census.gov/data/2022/acs/acs5?get=B19013_001E,NAME&for=tract:406301&in=state:06%20county:037&key={C_KEY}"
-            url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
+            fips_resp = requests.get(geo_url, timeout=10) # 增加 timeout
             
-            r = requests.get(url, timeout=5)
-            if r.status_code != 200: return default_data
-            d = r.json()[1]
-            print(3)
+            if fips_resp.status_code != 200:
+                print(f"❌ FCC API 失敗，狀態碼: {fips_resp.status_code}")
+                return default_data
+                
+            fips_json = fips_resp.json()
+            if not fips_json.get('results'): 
+                print("❌ FCC API 回傳無結果")
+                return default_data
+                
+            fips = fips_json['results'][0]['block_fips']
+            state = fips[:2]
+            county = fips[2:5]
+            tract = fips[5:11]
+            print(f"✅ FIPS 成功: State={state}, County={county}, Tract={tract}")
+            
+            print("📡 步驟 2: 呼叫 Census Data API")
+            vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B03002_003E,B01001_007E,B01001_011E"
+            # vars 對應: [0]收入, [1]總人口, [2]亞裔, [3]西裔, [4]非裔, [5]白人, [6]18-19歲, [7]20-24歲(大概)
+            
+            url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{tract}&in=state:{state}%20county:{county}&key={C_KEY}"
+            
+            r = requests.get(url, timeout=10)
+            if r.status_code != 200: 
+                print(f"❌ Census API 失敗: {r.text}")
+                return default_data
+                
+            data = r.json()
+            if len(data) < 2:
+                print("❌ Census API 回傳數據不足")
+                return default_data
+                
+            d = data[1]
+            print(f"✅ Census 數據獲取成功: {d}")
+            
             def safe_val(v): return int(v) if v else 0
+            
+            # 安全取值
             pop = safe_val(d[1]) or 1
+            income_val = safe_val(d[0])
+            asian_val = safe_val(d[2])
+            hispanic_val = safe_val(d[3])
+            white_val = safe_val(d[5]) # 對應 B03002_003E (您的原始邏輯)
+            
+            # 計算年齡 (依照您原始變數)
+            age_18_24_val = safe_val(d[6])
+            age_25_34_val = safe_val(d[7])
             
             return {
-                'income': safe_val(d[0]) / 12 if safe_val(d[0]) > 0 else 4500,
+                'income': income_val / 12 if income_val > 0 else 4500,
                 'eth': {
-                    '亞裔/華裔': round((safe_val(d[2])/pop)*100, 1),
-                    '西裔': round((safe_val(d[3])/pop)*100, 1),
-                    '白人': round((safe_val(d[5])/pop)*100, 1), 
-                    '其他': round(((pop - safe_val(d[2]) - safe_val(d[3]) - safe_val(d[5]))/pop)*100, 1)
+                    '亞裔/華裔': round((asian_val/pop)*100, 1),
+                    '西裔': round((hispanic_val/pop)*100, 1),
+                    '白人': round((white_val/pop)*100, 1), 
+                    '其他': round(((pop - asian_val - hispanic_val - white_val)/pop)*100, 1)
                 },
                 'age': {
-                    '18-24': round((safe_val(d[6])/pop)*100, 1),
-                    '25-34': round((safe_val(d[7])/pop)*100, 1),
-                    '35-45': round(((pop - safe_val(d[6]) - safe_val(d[7]))/pop)*30, 1),
-                    '其他': round(((pop - safe_val(d[6]) - safe_val(d[7]))/pop)*70, 1)
+                    '18-24': round((age_18_24_val/pop)*100, 1),
+                    '25-34': round((age_25_34_val/pop)*100, 1),
+                    '35-45': round(((pop - age_18_24_val - age_25_34_val)/pop)*30, 1), # 簡易估算
+                    '其他': round(((pop - age_18_24_val - age_25_34_val)/pop)*70, 1)  # 簡易估算
                 },
                 'source': "Official Census Data"
             }
-        except:
+        except Exception as e:
+            print(f"❌ 發生未預期錯誤: {e}")
+            traceback.print_exc() # 這行會在後台印出完整的錯誤位置
             return default_data
 
     @st.cache_data(ttl=3600)
@@ -250,6 +290,9 @@ if check_password():
             with st.spinner("🛰️ 戰略數據運算與衛星掃描中..."):
                 lat, lng, address_found = resolve_location_cached(location_input)
                 if lat:
+                    # 強制清除快取以確保讀取最新邏輯 (開發階段建議)
+                    get_census_data_cached.clear()
+                    
                     census_res = get_census_data_cached(lat, lng)
                     density = get_density_cached(lat, lng)
                     
@@ -275,7 +318,7 @@ if check_password():
         if '亞裔/華裔' not in eth or '白人' not in eth:
             st.warning("⚠️ 系統更新：偵測到舊版快取資料，正在自動重置...請再次點擊 [啟動戰略分析 Execute]。")
             del st.session_state['locked_data']
-            st.stop() # 停止執行，等待用戶重新點擊
+            st.rerun()
 
         # 驗證標籤
         if "Official" in census_res['source']:
@@ -371,7 +414,7 @@ if check_password():
             ai_text = "AI 分析連線失敗"
             if map_bytes and GEMINI_KEY:
                 genai.configure(api_key=GEMINI_KEY)
-                try: model = genai.GenerativeModel('gemini-3-flash-preview')
+                try: model = genai.GenerativeModel('gemini-1.5-flash')
                 except: model = genai.GenerativeModel('gemini-1.5-flash')
                 # 任務：
                 # 1. **地段視覺驗證**：用戶設定此地為 [{env_type}]，請觀察衛星圖確認建築密度與道路特徵是否吻合？
@@ -400,16 +443,3 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
-
-
-
-
-
-
-
-
-
-
-
-
-
