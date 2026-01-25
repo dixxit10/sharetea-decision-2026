@@ -194,7 +194,7 @@ if check_password():
             return {
                 'income': safe_val(d[0]) / 12 if safe_val(d[0]) > 0 else 4500,
                 'eth': {
-                    '東亞裔': round((safe_val(d[2])/pop)*100, 1),
+                    '亞裔/華裔': round((safe_val(d[2])/pop)*100, 1),
                     '西裔': round((safe_val(d[3])/pop)*100, 1),
                     '非裔': round((safe_val(d[4])/pop)*100, 1),
                     '其他': round(((pop - safe_val(d[2]) - safe_val(d[3]) - safe_val(d[4]))/pop)*100, 1)
@@ -226,7 +226,7 @@ if check_password():
     
     # 定義說明
     c1, c2, c3 = st.columns(3)
-    c1.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>量化大環境獲利潛力 (消費力、族群、地段基因)。<b>不受店內物理空間影響</b>。</div>", unsafe_allow_html=True)
+    c1.markdown("<div class='definition-box'><b>SFS 總分</b><br>量化大環境獲利潛力 (消費力、族群、地段基因)。<b>不受店內物理空間影響</b>。</div>", unsafe_allow_html=True)
     c2.markdown("<div class='definition-box'><b>空間體感質量 (參考)</b><br>設計師參考指標。基於人均面積判定：過載/標準/清晰。</div>", unsafe_allow_html=True)
     c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。</div>", unsafe_allow_html=True)
 
@@ -362,6 +362,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
