@@ -185,19 +185,20 @@ if check_password():
         if not C_KEY: return default_data
         
         try:
-            # geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
-            # fips_resp = requests.get(geo_url, timeout=5).json()
-            # if not fips_resp.get('results'): return default_data
-            # fips = fips_resp['results'][0]['block_fips']
-            
+            print(1)
+            geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
+            fips_resp = requests.get(geo_url, timeout=5).json()
+            if not fips_resp.get('results'): return default_data
+            fips = fips_resp['results'][0]['block_fips']
+            print(2)
             vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B03002_003E,B01001_007E,B01001_011E"
-            url = f"https://api.census.gov/data/2022/acs/acs5?get=B19013_001E,NAME&for=tract:406301&in=state:06%20county:037&key={C_KEY}"
-            # url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
+            # url = f"https://api.census.gov/data/2022/acs/acs5?get=B19013_001E,NAME&for=tract:406301&in=state:06%20county:037&key={C_KEY}"
+            url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
             
             r = requests.get(url, timeout=5)
             if r.status_code != 200: return default_data
             d = r.json()[1]
-            
+            print(3)
             def safe_val(v): return int(v) if v else 0
             pop = safe_val(d[1]) or 1
             
@@ -397,6 +398,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
