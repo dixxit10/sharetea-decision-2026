@@ -185,10 +185,10 @@ if check_password():
         if not C_KEY: return default_data
         
         try:
-            geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
-            fips_resp = requests.get(geo_url, timeout=5).json()
-            if not fips_resp.get('results'): return default_data
-            fips = fips_resp['results'][0]['block_fips']
+            # geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
+            # fips_resp = requests.get(geo_url, timeout=5).json()
+            # if not fips_resp.get('results'): return default_data
+            # fips = fips_resp['results'][0]['block_fips']
             
             vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B03002_003E,B01001_007E,B01001_011E"
             url = f"https://api.census.gov/data/2022/acs/acs5?get=B19013_001E,NAME&for=tract:406301&in=state:06%20county:037&key={C_KEY}"
@@ -397,6 +397,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
