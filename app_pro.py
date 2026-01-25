@@ -369,14 +369,17 @@ if check_password():
                 genai.configure(api_key=GEMINI_KEY)
                 try: model = genai.GenerativeModel('gemini-3-flash-preview')
                 except: model = genai.GenerativeModel('gemini-1.5-flash')
-                
+                # 任務：
+                # 1. **地段視覺驗證**：用戶設定此地為 [{env_type}]，請觀察衛星圖確認建築密度與道路特徵是否吻合？
+                # 2. **戰略執行**：針對 SFS {int(final_sfs)} 分 (由大環境決定) 及族裔結構，給出商業定位建議。
+                # 3. **空間設計**：針對人均 {area_per_seat} sqft 的空間 (設計限制條件)，給出裝修與動線建議。
                 prompt = f"""
                 角色：Sharetea 2026 戰略專家。
                 數據包：{packet}
                 任務：
-                1. **地段視覺驗證**：用戶設定此地為 [{env_type}]，請觀察衛星圖確認建築密度與道路特徵是否吻合？
-                2. **戰略執行**：針對 SFS {int(final_sfs)} 分 (由大環境決定) 及族裔結構，給出商業定位建議。
-                3. **空間設計**：針對人均 {area_per_seat} sqft 的空間 (設計限制條件)，給出裝修與動線建議。
+                1. 請觀察衛星圖確認建築密度與道路特徵是否吻合
+                2. (由大環境決定) 及族裔結構，給出商業定位建議。
+                3. 給出裝修與動線建議。
                 """
                 try:
                     map_bytes.seek(0)
@@ -393,6 +396,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
