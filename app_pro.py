@@ -166,12 +166,12 @@ if check_password():
         except: return None, None, None
 
     def get_census_data(lat, lng):
-        """直接回傳 API 數據 (如果失敗則回傳預設值)"""
-        # 預設數據 (Fallback)
+        """直接回傳 API 數據 (百分比修正版)"""
+        # 預設數據 (Fallback) - 已修正為百分比 (0-100)
         default_data = {
             'income': 50000,
-            'eth': {'東亞裔': 0.35, '西裔': 0.25, '非裔': 0.1, '其他': 0.3},
-            'age': {'18-24': 0.2, '25-34': 0.3, '其他': 0.5},
+            'eth': {'東亞裔': 35.0, '西裔': 25.0, '非裔': 10.0, '其他': 30.0},
+            'age': {'18-24': 20.0, '25-34': 30.0, '其他': 50.0},
             'source': "Estimated (API Unavailable)"
         }
 
@@ -195,19 +195,19 @@ if check_password():
             def safe_val(v): return int(v) if v else 0
             pop = safe_val(d[1]) or 1
             
-            # 計算真實數據
+            # 計算真實數據 (轉換為百分比 0-100)
             return {
                 'income': safe_val(d[0]) / 12 if safe_val(d[0]) > 0 else 4500,
                 'eth': {
-                    '東亞裔': round(safe_val(d[2])/pop, 3),
-                    '西裔': round(safe_val(d[3])/pop, 3),
-                    '非裔': round(safe_val(d[4])/pop, 3),
-                    '其他': round((pop - safe_val(d[2]) - safe_val(d[3]) - safe_val(d[4]))/pop, 3)
+                    '東亞裔': round((safe_val(d[2])/pop)*100, 1),
+                    '西裔': round((safe_val(d[3])/pop)*100, 1),
+                    '非裔': round((safe_val(d[4])/pop)*100, 1),
+                    '其他': round(((pop - safe_val(d[2]) - safe_val(d[3]) - safe_val(d[4]))/pop)*100, 1)
                 },
                 'age': {
-                    '18-24': round(safe_val(d[5])/pop, 3),
-                    '25-34': round(safe_val(d[6])/pop, 3),
-                    '其他': round((pop - safe_val(d[5]) - safe_val(d[6]))/pop, 3)
+                    '18-24': round((safe_val(d[5])/pop)*100, 1),
+                    '25-34': round((safe_val(d[6])/pop)*100, 1),
+                    '其他': round(((pop - safe_val(d[5]) - safe_val(d[6]))/pop)*100, 1)
                 },
                 'source': "Official Census Data"
             }
@@ -250,9 +250,9 @@ if check_password():
                     eth = census_res['eth']
                     age = census_res['age']
                     
-                    # 3. SFS 運算
-                    age_score = (age['25-34'] * 2.5 + age['18-24'] * 2.3) / 100
-                    eth_score = (eth['東亞裔'] * 3.0 + eth['西裔'] * 1.5) / 100 
+                    # 3. SFS 運算 (注意：這裡將百分比除以 100 還原為係數進行計算)
+                    age_score = (age['25-34']/100 * 2.5 + age['18-24']/100 * 2.3)
+                    eth_score = (eth['東亞裔']/100 * 3.0 + eth['西裔']/100 * 1.5)
                     target_index = (eth_score + age_score)
                     if target_index < 1.0: target_index = 1.0
                     
@@ -287,11 +287,12 @@ if check_password():
                     col_charts1, col_charts2, col_charts3 = st.columns(3)
                     
                     with col_charts1:
-                        st.markdown("**📊 族裔組成 (Ethnic)**")
+                        st.markdown("**📊 族裔組成 (Ethnic %)**")
+                        # 將字典轉換為 DataFrame 供圖表使用
                         st.bar_chart(pd.DataFrame(eth.items(), columns=["族裔", "比例"]).set_index("族裔"), color="#00FF41")
 
                     with col_charts2:
-                        st.markdown("**📊 年齡結構 (Age)**")
+                        st.markdown("**📊 年齡結構 (Age %)**")
                         st.bar_chart(pd.DataFrame(age.items(), columns=["年齡層", "比例"]).set_index("年齡層"), color="#3399FF")
 
                     with col_charts3:
@@ -314,7 +315,8 @@ if check_password():
                         "月收": f"${income:,.0f}",
                         "人均面積": f"{area_per_seat} sqft",
                         "密度": density,
-                        "族裔": eth
+                        "族裔": eth, # 這裡現在是百分比
+                        "年齡": age  # 這裡現在是百分比
                     }
                     
                     map_bytes = None
@@ -325,7 +327,7 @@ if check_password():
                                 img_data = requests.get(map_url).content
                                 map_bytes = BytesIO(img_data)
                                 st.image(map_bytes, caption="📍 戰略座標快照", use_container_width=True)
-                                st.json(packet)
+                                # [已修正] 這裡移除了 st.json(packet) 以保持前台簡潔
                             except: st.error("地圖載入失敗")
                         else: st.warning("無地圖 (Missing Key)")
                             
@@ -341,7 +343,7 @@ if check_password():
                             數據包：{packet}
                             任務：
                             1. **地段視覺驗證**：用戶設定此地為 [{env_type}]，請觀察衛星圖中的建築密度、道路寬度與停車場配置，判斷這是否準確？(例如設定 Mall 但看起來像街邊)。
-                            2. **戰略執行**：針對此區域的 SFS 分數與族裔結構，給出具體的行銷建議。
+                            2. **戰略執行**：針對此區域的 SFS 分數與族裔結構 (數據為百分比)，給出具體的行銷建議。
                             3. **空間設計**：針對人均 {area_per_seat} sqft 的空間，給出設計上的放大空間感建議。
                             """
                             with st.spinner("AI 正在閱讀地圖紋理..."):
