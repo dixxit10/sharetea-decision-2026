@@ -113,13 +113,12 @@ if check_password():
         help="輸入地址自動解析"
     )
 
-    # 3.2 地段基因 (更新 Office 選項)
+    # 3.2 地段基因
     st.sidebar.markdown("#### 地段基因 (Macro)")
     env_type = st.sidebar.selectbox(
         "選擇地段類型:",
         ["Shopping Mall", "Community", "Plaza", "Main Street", "Transit Hub", "Food Court", "Office"]
     )
-    # [權重更新] Office = 0.8x
     env_mapping = {
         "Shopping Mall": 1.2, "Community": 1.0, "Plaza": 1.0, 
         "Main Street": 0.8, "Transit Hub": 0.8, "Food Court": 0.8, "Office": 0.8
@@ -176,7 +175,7 @@ if check_password():
 
     @st.cache_data(ttl=3600)
     def get_census_data_cached(lat, lng):
-        # [更新] 預設數據包含 35-45 歲與白人
+        # 預設數據包含新標籤
         default_data = {
             'income': 50000,
             'eth': {'亞裔/華裔': 30.0, '西裔': 30.0, '白人': 20.0, '其他': 20.0},
@@ -191,8 +190,6 @@ if check_password():
             if not fips_resp.get('results'): return default_data
             fips = fips_resp['results'][0]['block_fips']
             
-            # [更新] API 變數增加白人 (B03002_003E)
-            # 簡化：年齡仍取 18-24, 25-34, 其餘歸類為 35-45 與 Other 的估算
             vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B03002_003E,B01001_007E,B01001_011E"
             url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
             
@@ -208,15 +205,12 @@ if check_password():
                 'eth': {
                     '亞裔/華裔': round((safe_val(d[2])/pop)*100, 1),
                     '西裔': round((safe_val(d[3])/pop)*100, 1),
-                    # [新增] 白人 (Core)
                     '白人': round((safe_val(d[5])/pop)*100, 1), 
-                    # 修正：非裔與其他合併為 Base (非核心)
                     '其他': round(((pop - safe_val(d[2]) - safe_val(d[3]) - safe_val(d[5]))/pop)*100, 1)
                 },
                 'age': {
                     '18-24': round((safe_val(d[6])/pop)*100, 1),
                     '25-34': round((safe_val(d[7])/pop)*100, 1),
-                    # 模擬 35-45 (因 API 變數限制，暫以剩餘人口的 30% 估算)
                     '35-45': round(((pop - safe_val(d[6]) - safe_val(d[7]))/pop)*30, 1),
                     '其他': round(((pop - safe_val(d[6]) - safe_val(d[7]))/pop)*70, 1)
                 },
@@ -272,13 +266,18 @@ if check_password():
         eth = census_res['eth']
         age = census_res['age']
         
+        # [關鍵修正]：自動快取清理與相容性檢查
+        # 如果舊快取中沒有 '亞裔/華裔' 或 '白人'，代表資料過期，強制重置
+        if '亞裔/華裔' not in eth or '白人' not in eth:
+            st.warning("⚠️ 系統更新：偵測到舊版快取資料，正在自動重置...請再次點擊 [啟動戰略分析 Execute]。")
+            del st.session_state['locked_data']
+            st.stop() # 停止執行，等待用戶重新點擊
+
         # 驗證標籤
         if "Official" in census_res['source']:
             st.markdown(f"""<div class="source-tag-success">🟢 數據驗證通過：{census_res['source']}</div>""", unsafe_allow_html=True)
         else:
             st.markdown(f"""<div class="source-tag-warning">🟡 數據驗證警告：{census_res['source']}</div>""", unsafe_allow_html=True)
-        
-        # [核心修正] SFS 權重運算邏輯更新
         
         # 1. 族裔加權 (Race)
         # 核心 (2.5x): 亞裔/華裔 + 西裔 + 白人
