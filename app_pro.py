@@ -73,7 +73,7 @@ if check_password():
             return len(requests.get(url).json().get('results', []))
         except: return 10
 
-    # --- 4. 前端展示：名詞解釋與加權邏輯 (全展開) ---
+    # --- 4. 前端展示：名詞解釋與加權邏輯 ---
     st.title("📚 Sharetea 2026 戰略體系與數據對齊")
     st.markdown("<div class='formula-card'>", unsafe_allow_html=True)
     st.latex(r"SFS = \frac{(\text{Monthly Income} \times \text{Target Index}) \times 7 \times \text{Pressure Coeff}}{\text{Density}^{0.7} + 1}")
@@ -83,27 +83,18 @@ if check_password():
     with l_col1:
         st.markdown(f"""
         <div class='logic-card'>
-        <h3>👥 Target Index (客群加權邏輯)</h3>
-        <b>1. 族裔權重 (Race Weight):</b><br>
-        • 華/台裔、西裔、白人：<b>2.5x</b><br>
-        • 其餘族裔：<b>2.0x</b><br><br>
-        <b>2. 年齡權重 (Age Weight):</b><br>
-        • 25-34 歲 (社交主力)：<b>2.5x</b><br>
-        • 18-24、35+ 歲：<b>2.0x</b><br><br>
-        <b>3. 地段基因：</b>目前設定為 <b>{loc_type}</b>
+        <h3>👥 Target Index (客群加權)</h3>
+        <b>1. 族裔權重:</b> 華/台、西、白人 <b>2.5x</b> / 其餘 <b>2.0x</b><br>
+        <b>2. 年齡權重:</b> 25-34歲 <b>2.5x</b> / 其餘 <b>2.0x</b><br>
+        <b>3. 地段基因：</b> <b>{loc_type}</b>
         </div>
         """, unsafe_allow_html=True)
     with l_col2:
         st.markdown("""
         <div class='logic-card'>
-        <h3>🛰️ 競爭壓制與空間品質 (ADA)</h3>
-        <b>1. 廣義競爭密度 (Density):</b><br>
-        • 涵蓋：珍奶、咖啡、甜點、餐飲全品類。<br>
-        • 算法：採用 Density^0.7 指數級壓制。<br><br>
-        <b>2. 空間品質係數 (Pressure Coeff):</b><br>
-        • 清晰級 (>35 sqft)：<b>1.2x</b><br>
-        • 標準質感 (25-34 sqft)：<b>1.0x</b><br>
-        • 過載/嚴重雜訊 (<15 sqft)：<b>0.5x</b>
+        <h3>🛰️ 競爭壓制與空間品質</h3>
+        <b>1. 廣義競爭密度:</b> 涵蓋全品類餐飲，Density^0.7 壓制。<br>
+        <b>2. 空間補償:</b> 清晰(>35sqft) <b>1.2x</b> / 雜訊(<15sqft) <b>0.5x</b>
         </div>
         """, unsafe_allow_html=True)
 
@@ -117,7 +108,6 @@ if check_password():
                     income, eth, age = get_census_full_profile(lat, lng)
                     density = get_expanded_density(lat, lng)
                     
-                    # 計算指數
                     r_w = (eth.get("華/台裔",0)*2.5) + (eth.get("西裔",0)*2.5) + (eth.get("白人",0)*2.5) + (eth.get("其餘",0)*2.0)
                     a_w = (age.get("25-34",0)*2.5) + (age.get("18-24",0)*2.0) + (age.get("35+",0)*2.0)
                     target_index = r_w * a_w
@@ -125,7 +115,7 @@ if check_password():
                     level = "Model (M)" if final_sfs >= 15000 else "Community (C)" if final_sfs >= 8500 else "eXpress (X)"
                     if cust_area < 250: level = "高效普及 (eXpress-X) [物理受限]"
 
-                    # --- 前端綜合數據顯示 (使用者與 AI 同步可見) ---
+                    # --- 診斷看板 ---
                     st.divider()
                     st.subheader("📋 綜合戰略診斷看板")
                     m1, m2, m3, m4 = st.columns(4)
@@ -134,45 +124,49 @@ if check_password():
                     m3.metric("月消費力", f"${income:,.0f}")
                     m4.metric("廣義競業", f"{density} 家")
 
-                    # 詳細數據表 (對齊 AI 的輸入)
-                    st.markdown("<div class='data-header'>📊 實時人口與環境數據明細</div>", unsafe_allow_html=True)
+                    # 數據明細 (百分比化)
+                    st.markdown("<div class='data-header'>📊 實時數據明細 (已同步百分比)</div>", unsafe_allow_html=True)
                     d_col1, d_col2, d_col3 = st.columns(3)
                     with d_col1:
                         st.write("**族裔分布 (CENSUS)**")
-                        st.table(pd.DataFrame(eth.items(), columns=["族群", "比例"]).set_index("族群"))
+                        eth_df = pd.DataFrame(eth.items(), columns=["族群", "比例"])
+                        eth_df["比例"] = eth_df["比例"].map('{:.1%}'.format) # 修正為百分比
+                        st.table(eth_df.set_index("族群"))
                     with d_col2:
                         st.write("**年齡結構 (CENSUS)**")
-                        st.table(pd.DataFrame(age.items(), columns=["段落", "比例"]).set_index("段落"))
+                        age_df = pd.DataFrame(age.items(), columns=["段落", "比例"])
+                        age_df["比例"] = age_df["比例"].map('{:.1%}'.format) # 修正為百分比
+                        st.table(age_df.set_index("段落"))
                     with d_col3:
-                        st.write("**空間與物理指標**")
-                        st.write(f"• 活動空間: {cust_area} sqft")
+                        st.write("**物理與指數指標**")
                         st.write(f"• 壓力係數: {pressure_coeff}")
-                        st.write(f"• 人均面積: {area_per_seat:.1f}")
+                        st.write(f"• 人均面積: {area_per_seat:.1f} sqft")
                         st.write(f"• Target Index: {target_index:.2f}")
 
-                    # 靜態地圖與 AI 解析
+                    # 地圖照片
                     col_map, col_ai = st.columns([1, 1])
                     with col_map:
                         map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=17&size=800x640&scale=2&markers=color:red%7C{lat},{lng}&key={G_KEY}"
-                        map_img = Image.open(BytesIO(requests.get(map_url).content))
-                        st.image(map_img, use_container_width=True, caption=f"📍 {loc_type} Retina 掃描照片")
+                        map_content = requests.get(map_url).content
+                        map_img = Image.open(BytesIO(map_content))
+                        st.image(map_img, use_container_width=True, caption=f"📍 {loc_type} Retina 照片")
                     
+                    # AI 解析 (加入 429 錯誤處理)
                     with col_ai:
                         st.subheader("🤖 Gemini 3 Flash 全維度判讀")
-                        genai.configure(api_key=GEMINI_KEY)
-                        model = genai.GenerativeModel('gemini-3-flash-preview')
-                        
-                        # 封裝所有前端可見數據給 AI
-                        packet = {
-                            "SFS": round(final_sfs), "分級": level, "地段基因": loc_type, 
-                            "消費力": income, "族裔": eth, "年齡": age, "競爭": density, 
-                            "人均空間": area_per_seat, "壓力係數": pressure_coeff
-                        }
-                        
-                        brand_dna = "2026 DNA: 現代極簡、視覺降噪、高質感屏蔽設計、Miffy藝術跨界。"
-                        prompt = f"你是 Sharetea 顧問。請參考品牌DNA {brand_dna}。根據對齊數據包 {packet} 與地圖照片，給予營運、行銷、設計建議。特別針對該地段的 {density} 家競爭者給予突圍策略。"
-                        st.markdown(model.generate_content([prompt, map_img]).text)
+                        try:
+                            genai.configure(api_key=GEMINI_KEY)
+                            model = genai.GenerativeModel('gemini-3-flash-preview')
+                            packet = {"SFS": round(final_sfs), "分級": level, "地段基因": loc_type, "競業": density, "收入": income, "人均空間": area_per_seat}
+                            brand_dna = "2026 DNA: 現代極簡、視覺降噪、高質感屏蔽設計、Miffy藝術跨界。"
+                            prompt = f"你是顧問。品牌DNA: {brand_dna}。根據數據 {packet} 與照片，給予建議。針對 {density} 家競爭者給予突圍策略。"
+                            st.markdown(model.generate_content([prompt, map_img]).text)
+                        except Exception as e:
+                            if "429" in str(e):
+                                st.warning("⚠️ **Gemini API 配額暫時用盡** (Error 429)。這是因為免費層級的頻率限制，請等待約 1 分鐘後再重試，或升級 API 方案。")
+                            else:
+                                st.error(f"AI 判讀發生其他錯誤: {e}")
 
-            except Exception as e: st.error(f"數據對齊報錯: {e}")
+            except Exception as e: st.error(f"系統報錯: {e}")
 
-    st.caption("Produced by Marketing Designer. v10.3.8 | 數據前端完全顯示模式。")
+    st.caption("Produced by Marketing Designer. v10.3.9 | 百分比對齊與配額監控模式。")
