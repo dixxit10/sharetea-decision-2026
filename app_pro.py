@@ -126,16 +126,16 @@ if check_password():
     area_per_seat = cust_area / est_seats if est_seats > 0 else 0
     
     if area_per_seat >= 35:
-        quality_status = "✨ 極致清晰 (Visual Clarity)"
+        quality_status = "極致清晰 (Visual Clarity)"
         q_color = "#00FF41"
     elif area_per_seat >= 25:
-        quality_status = "✅ 標準質感 (Standard)"
+        quality_status = "標準質感 (Standard)"
         q_color = "#3399FF"
     elif area_per_seat >= 15:
-        quality_status = "⚠️ 體驗過載 (Overload)"
+        quality_status = "體驗過載 (Overload)"
         q_color = "#FFAA00"
     else:
-        quality_status = "🚨 嚴重雜訊 (Noise)"
+        quality_status = "嚴重雜訊 (Noise)"
         q_color = "#FF3333"
     
     st.sidebar.markdown(f"設計參考: <span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
@@ -169,7 +169,7 @@ if check_password():
     def get_census_data_cached(lat, lng):
         default_data = {
             'income': 50000,
-            'eth': {'東亞裔': 35.0, '西裔': 25.0, '非裔': 10.0, '其他': 30.0},
+            'eth': {'亞裔/華裔': 35.0, '西裔': 25.0, '非裔': 10.0, '其他': 30.0},
             'age': {'18-24': 20.0, '25-34': 30.0, '其他': 50.0},
             'source': "Estimated (API Unavailable)"
         }
@@ -219,7 +219,7 @@ if check_password():
         except: return 5
 
     # --- 5. 主介面 ---
-    st.title("📚 Sharetea 2026 戰略指標體系")
+    st.title("📚 Sharetea 2026 指標體系")
     
     # 公式更新：移除 PressureCoeff
     st.latex(r"SFS = \frac{(Income \times TargetIndex \times EnvWeight) \times 7}{Density^{0.7} + 1}")
@@ -291,7 +291,7 @@ if check_password():
         # 圖表區
         col_charts1, col_charts2, col_charts3 = st.columns(3)
         with col_charts1:
-            st.markdown("**📊 族裔組成 (Ethnic %)**")
+            st.markdown("**📊 族群組成 (Ethnic %)**")
             st.bar_chart(pd.DataFrame(eth.items(), columns=["族裔", "比例"]).set_index("族裔"), color="#00FF41")
         with col_charts2:
             st.markdown("**📊 年齡結構 (Age %)**")
@@ -362,5 +362,6 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
