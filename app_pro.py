@@ -300,12 +300,12 @@ if check_password():
         if target_index < 1.0: target_index = 1.0
         
         # SFS 公式
-        final_sfs = ((income * target_index * env_weight) * 7) / (math.pow(density + 1, 0.7))
+        # final_sfs = ((income * target_index * env_weight) * 7) / (math.pow(density + 1, 0.7))
         
         # 分級
-        if final_sfs >= 15000: level = "品牌指標 (Model-M)"
-        elif final_sfs >= 8500: level = "社區標準 (Community-C)"
-        else: level = "高效普及 (eXpress-X)"
+        # if final_sfs >= 15000: level = "品牌指標 (Model-M)"
+        # elif final_sfs >= 8500: level = "社區標準 (Community-C)"
+        # else: level = "高效普及 (eXpress-X)"
 
         # 儀表板
         m1, m2, m3, m4, m5 = st.columns(5)
@@ -391,6 +391,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
