@@ -7,7 +7,7 @@ from io import BytesIO
 from PIL import Image
 
 # --- 0. 系統配置 ---
-st.set_page_config(page_title="Sharetea Express 2026 戰略診斷", layout="wide")
+st.set_page_config(page_title="Sharetea Express 2026 分析", layout="wide")
 
 st.markdown("""
     <style>
@@ -17,7 +17,7 @@ st.markdown("""
     /* 定義框 */
     .definition-box { 
         background-color: #1A1A1A; 
-        border-left: 3px solid #00FF41; 
+        border-left: 3px solid #ed404e; 
         padding: 15px; 
         margin-bottom: 10px; 
         border-radius: 4px; 
@@ -306,7 +306,7 @@ if check_password():
             if area_per_seat < 15:
                 st.markdown("<span style='color:red'>⚠️ 空間嚴重過載，建議優化動線</span>", unsafe_allow_html=True)
             elif area_per_seat > 30:
-                st.markdown("<span style='color:#00FF41'>✅ 空間充裕，適合體驗型設計</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#00FF41'>✅ 空間充裕</span>", unsafe_allow_html=True)
 
         st.divider()
 
@@ -362,3 +362,4 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
