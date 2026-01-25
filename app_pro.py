@@ -233,10 +233,10 @@ if check_password():
     st.latex(r"SFS = \frac{(Income \times TargetIndex \times EnvWeight) \times 7}{Density^{0.7} + 1}")
     
     # 定義說明
-    c1, c2, c3 = st.columns(3)
-    c1.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>核心：亞裔/西裔/白人(2.5x)。25-34歲(2.5x) / 18-24(2.3x) / 35-45(2.0x)。</div>", unsafe_allow_html=True)
-    c2.markdown("<div class='definition-box'><b>空間體感質量 (參考)</b><br>設計師參考指標。基於人均面積判定：過載/標準/清晰。</div>", unsafe_allow_html=True)
-    c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。</div>", unsafe_allow_html=True)
+    # c1, c2, c3 = st.columns(3)
+    # c1.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>核心：亞裔/西裔/白人(2.5x)。25-34歲(2.5x) / 18-24(2.3x) / 35-45(2.0x)。</div>", unsafe_allow_html=True)
+    # c2.markdown("<div class='definition-box'><b>空間體感質量 (參考)</b><br>設計師參考指標。基於人均面積判定：過載/標準/清晰。</div>", unsafe_allow_html=True)
+    # c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。</div>", unsafe_allow_html=True)
 
     # --- 6. 執行邏輯 ---
     if execute_btn:
@@ -309,10 +309,10 @@ if check_password():
 
         # 儀表板
         m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("SFS 戰略總分", f"{int(final_sfs):,}", delta="地段潛力")
-        m2.metric("位置分級", level, delta_color="off")
+        # m1.metric("SFS 戰略總分", f"{int(final_sfs):,}", delta="地段潛力")
+        # m2.metric("位置分級", level, delta_color="off")
         m3.metric("月消費力", f"${int(income):,}")
-        m4.metric("地段基因", f"{env_type} ({env_weight}x)")
+        # m4.metric("地段基因", f"{env_type} ({env_weight}x)")
         m5.metric("周邊競業", f"{density} 家")
         
         st.caption(f"📍 分析標的：{data['address']}")
@@ -391,4 +391,5 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
