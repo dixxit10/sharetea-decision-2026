@@ -309,7 +309,7 @@ if check_password():
 
         # 儀表板
         # m1, m2, m3, m4, m5 = st.columns(5)
-        m3, m5 = st.columns(5)
+        m3, m5 = st.columns(2)
         # m1.metric("SFS 戰略總分", f"{int(final_sfs):,}", delta="地段潛力")
         # m2.metric("位置分級", level, delta_color="off")
         m3.metric("月消費力", f"${int(income):,}")
@@ -321,7 +321,7 @@ if check_password():
         st.divider()
         
         # 圖表區
-        col_charts1, col_charts2 = st.columns(3)
+        col_charts1, col_charts2 = st.columns(2)
         # col_charts1, col_charts2, col_charts3 = st.columns(3)
         with col_charts1:
             st.markdown("**📊 族群組成 (Ethnic %)**")
@@ -393,6 +393,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
