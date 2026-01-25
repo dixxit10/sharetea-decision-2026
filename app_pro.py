@@ -72,7 +72,7 @@ def check_password():
     with st.form("login_form"):
         st.markdown("### 🔐 Sharetea 系統門禁")
         input_pwd = st.text_input("Security Access Code", type="password")
-        submit_button = st.form_submit_button("開啟戰略引擎")
+        submit_button = st.form_submit_button("開啟引擎")
 
     if submit_button:
         if input_pwd == correct_pwd:
@@ -362,4 +362,5 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
