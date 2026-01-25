@@ -19,18 +19,38 @@ st.markdown("""
         background-color: #0E0E0E;
         color: #E0E0E0;
     }
+    
+    /* Headers */
     h1, h2, h3 { color: #FFFFFF !important; font-family: 'Helvetica Neue', sans-serif; font-weight: 700; }
+    
+    /* Strategic Colors */
     .strategic-green { color: #00FF41 !important; font-family: 'Courier New', monospace; font-weight: bold; }
     .strategic-red { color: #FF3333 !important; font-family: 'Courier New', monospace; font-weight: bold; }
+    
+    /* Inputs */
     .stTextInput > div > div > input { background-color: #1C1C1C; color: #FFFFFF; border: 1px solid #333; }
     .stSelectbox > div > div > div { background-color: #1C1C1C; color: #FFFFFF; }
+    
+    /* Metrics & Analysis Box */
     .metric-box { background-color: #1A1A1A; border-left: 3px solid #00FF41; padding: 15px; margin-bottom: 10px; }
     .ai-analysis { font-family: 'Courier New', monospace; background-color: #111; padding: 15px; border: 1px solid #333; color: #CCCCCC; white-space: pre-wrap; }
+    
+    /* Button Styling */
+    div.stButton > button:first-child {
+        background-color: #00FF41;
+        color: #000000;
+        font-weight: bold;
+        border: none;
+    }
+    div.stButton > button:first-child:hover {
+        background-color: #00CC33;
+        color: #000000;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. Security & Authentication Function
+# 2. Security & Authentication (Fixed with Button)
 # -----------------------------------------------------------------------------
 def check_password():
     """Returns `True` if the user had the correct password."""
@@ -49,38 +69,45 @@ def check_password():
         st.text_input(
             "Security Access Code", type="password", on_change=password_entered, key="password"
         )
+        st.button("🔐 驗證並登入 Verify Access", on_click=password_entered)
         return False
+        
     elif not st.session_state["password_correct"]:
         # Password not correct, show input + error.
         st.markdown("### 🔒 Sharetea Express 2026 Strategic System")
         st.text_input(
             "Security Access Code", type="password", on_change=password_entered, key="password"
         )
+        st.button("🔐 驗證並登入 Verify Access", on_click=password_entered)
         st.error("⛔ ACCESS DENIED: Invalid Security Code")
         return False
+        
     else:
         # Password correct.
         return True
 
 # -----------------------------------------------------------------------------
-# 3. Main Application Logic (Protected)
+# 3. Main Application Logic (Protected Scope)
 # -----------------------------------------------------------------------------
 if check_password():
     
-    # --- Load API Keys Safely (Ready for future integration) ---
-    # 這些變數現在可以在程式碼中安全使用，例如傳遞給 Google Maps API
+    # --- Load API Keys Safely ---
     try:
         CENSUS_KEY = st.secrets["api_keys"]["CENSUS_KEY"]
         GOOGLE_KEY = st.secrets["api_keys"]["GOOGLE_KEY"]
         GEMINI_KEY = st.secrets["api_keys"]["GEMINI_KEY"]
     except FileNotFoundError:
-        st.error("⚠️ secrets.toml not found. Please setup your keys.")
+        st.error("⚠️ secrets.toml not found. Please setup your keys in Streamlit secrets.")
+        st.stop()
+    except KeyError:
+        st.error("⚠️ Secrets config incomplete. Please check [api_keys] section.")
         st.stop()
 
-    # --- Original SFS Logic Starts Here ---
-    
+    # --- SFS Core Logic Functions ---
     def calculate_target_index(race_dist, age_dist):
+        # Race: Asian/Hisp/White (2.5x), Others (1.0x)
         race_score = ((race_dist['Asian'] + race_dist['Hispanic'] + race_dist['White']) * 2.5 + (race_dist['Other']) * 1.0) / 100
+        # Age: 25-34(2.5), 18-24(2.3), 35-45(2.0), Others(1.0)
         age_score = ((age_dist['25-34'] * 2.5) + (age_dist['18-24'] * 2.3) + (age_dist['35-45'] * 2.0) + (age_dist['Other'] * 1.0)) / 100
         return (race_score + age_score) / 2
 
@@ -93,29 +120,34 @@ if check_password():
         est_seats = seat_map.get(seats_cat, 10)
         if est_seats == 0: est_seats = 1
         sqft_per_person = area / est_seats
-        if sqft_per_person >= 35: return 1.2, sqft_per_person, "視覺純淨 (Visual Clarity)"
-        elif sqft_per_person < 15: return 0.5, sqft_per_person, "嚴重過載 (Overload)"
-        else: return 1.0, sqft_per_person, "標準平衡 (Balanced)"
+        
+        if sqft_per_person >= 35: 
+            return 1.2, sqft_per_person, "視覺純淨 (Visual Clarity)"
+        elif sqft_per_person < 15: 
+            return 0.5, sqft_per_person, "嚴重過載 (Overload)"
+        else: 
+            return 1.0, sqft_per_person, "標準平衡 (Balanced)"
 
     def determine_store_model(sfs):
         if sfs >= 15000: return "Model (M)", "品牌綠洲店", "質感溢價、感官引導"
         elif sfs >= 8500: return "Community (C)", "社區標準店", "社交黏度、鄰里連結"
         else: return "eXpress (X)", "高效機能店", "能效轉換、快速取餐"
 
-    # --- Sidebar ---
+    # --- Sidebar Inputs ---
     st.sidebar.markdown("### ⬅️ Strategic Input")
     st.sidebar.markdown("---")
+    
     loc_name = st.sidebar.text_input("店名 / 專案代號", "Sharetea DTLA-01")
     coords = st.sidebar.text_input("Google Maps 座標", "34.0407, -118.2468")
     env_type = st.sidebar.selectbox("地段基因 (Environment)", ["Shopping Mall", "Community", "Plaza", "Main Street", "Food Court", "Transit Hub", "Office District"])
     
-    st.sidebar.markdown("#### 物理空間")
+    st.sidebar.markdown("#### 物理空間 (Physical Space)")
     area_sqft = st.sidebar.number_input("顧客活動空間 (sq. ft.)", 100, 600, 250)
     seats_cat = st.sidebar.radio("預計座位數", ["0-6 席", "7-12 席", "13-20 席", "20+ 席"], index=1)
     
-    st.sidebar.markdown("#### 市場數據")
+    st.sidebar.markdown("#### 市場數據 (Market Data)")
     monthly_income = st.sidebar.number_input("預估月營收 ($)", value=45000)
-    density = st.sidebar.number_input("1km 競業密度", value=5)
+    density = st.sidebar.number_input("1km 競業密度 (Density)", value=5)
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### 族裔分布 (%)")
@@ -130,59 +162,76 @@ if check_password():
     age_18_24 = st.sidebar.slider("18-24 歲 %", 0, 100, 25)
     age_35_45 = st.sidebar.slider("35-45 歲 %", 0, 100, 20)
     age_other = max(0, 100 - (age_25_34 + age_18_24 + age_35_45))
-    st.sidebar.caption(f"其他: {age_other}%")
+    st.sidebar.caption(f"其他 (0-17, 46+): {age_other}%")
 
-    execute_btn = st.sidebar.button("執行戰略分析 Execute", type="primary")
+    # The Execution Button
+    execute_btn = st.sidebar.button("執行戰略分析 Execute")
 
-    # --- Header ---
-    with st.expander("📐 SFS 核心運算邏輯 (已驗證 Access Granted)", expanded=False):
+    # --- Main Dashboard ---
+    
+    # System Integrity Header
+    with st.expander("📐 SFS 核心運算邏輯 (System Definition)", expanded=False):
         st.write("System Integrity Check: OK. Keys Loaded.")
+        st.latex(r"SFS = \frac{(\text{Monthly Income} \times \text{Target Index} \times \text{Env Weight}) \times 7 \times \text{Pressure Coeff}}{\text{Density}^{0.7} + 1}")
 
     if execute_btn:
-        # Calcs
+        # 1. Perform Calculations
         race_dist = {'Asian': race_asian, 'Hispanic': race_hisp, 'White': race_white, 'Other': race_other}
         age_dist = {'25-34': age_25_34, '18-24': age_18_24, '35-45': age_35_45, 'Other': age_other}
+        
         target_index = calculate_target_index(race_dist, age_dist)
         env_weight = get_env_weight(env_type)
         pressure_coeff, sqft_pp, pressure_status = calculate_pressure_coeff(area_sqft, seats_cat)
+        
         numerator = (monthly_income * target_index * env_weight) * 7 * pressure_coeff
         denominator = (density ** 0.7) + 1
         sfs_score = numerator / denominator
+        
         model_code, model_name, model_task = determine_store_model(sfs_score)
 
-        # Output
+        # 2. Render Dashboard
         st.title(f"📍 戰略決策報告: {loc_name}")
-        st.markdown(f"**座標**: `{coords}` (API 連線準備就緒)")
+        st.markdown(f"**座標**: `{coords}` (Data Sources Connected)")
 
+        # Section 1: Indicators
+        st.markdown("### 1. 戰略指標牆 (Strategic Indicators)")
         col1, col2, col3, col4 = st.columns(4)
-        with col1: st.markdown(f"<div class='metric-box'><h3>SFS 總分</h3><span class='strategic-green' style='font-size: 32px'>{int(sfs_score):,}</span></div>", unsafe_allow_html=True)
+        
+        with col1: 
+            st.markdown(f"<div class='metric-box'><h3>SFS 總分</h3><span class='strategic-green' style='font-size: 32px'>{int(sfs_score):,}</span></div>", unsafe_allow_html=True)
         with col2: 
             color_class = "strategic-green" if "M" in model_code else "white"
             st.markdown(f"<div class='metric-box'><h3>店型判定</h3><span class='{color_class}' style='font-size: 24px'>{model_code}</span><br><small>{model_name}</small></div>", unsafe_allow_html=True)
-        with col3: st.markdown(f"<div class='metric-box'><h3>Target Index</h3><span style='font-size: 24px'>{target_index:.2f}x</span></div>", unsafe_allow_html=True)
+        with col3: 
+            st.markdown(f"<div class='metric-box'><h3>Target Index</h3><span style='font-size: 24px'>{target_index:.2f}x</span></div>", unsafe_allow_html=True)
         with col4:
             p_color = "strategic-red" if pressure_coeff < 1.0 else "strategic-green"
             st.markdown(f"<div class='metric-box'><h3>Pressure Coeff</h3><span class='{p_color}' style='font-size: 24px'>{pressure_coeff}x</span><br><small>{pressure_status}</small></div>", unsafe_allow_html=True)
 
-        st.markdown("### 2. 全透明數據明細")
+        # Section 2: Data Investigation
+        st.markdown("### 2. 全透明數據明細 (The Investigation)")
         c1, c2 = st.columns(2)
         with c1: 
-            st.markdown("**族裔結構**")
-            st.dataframe(pd.DataFrame([race_dist]).T.rename(columns={0:'%'}), use_container_width=True)
+            st.markdown("**族裔結構 (Race Structure)**")
+            st.dataframe(pd.DataFrame([race_dist]).T.rename(columns={0:'Percentage %'}), use_container_width=True)
         with c2: 
-            st.markdown("**年齡結構**")
-            st.dataframe(pd.DataFrame([age_dist]).T.rename(columns={0:'%'}), use_container_width=True)
+            st.markdown("**年齡結構 (Age Structure)**")
+            st.dataframe(pd.DataFrame([age_dist]).T.rename(columns={0:'Percentage %'}), use_container_width=True)
 
-        # Analysis Text Generation
+        st.info(f"競業密度: {density} 家 (1km 內) | 人均活動空間: {sqft_pp:.1f} sqft/person")
+
+        # Section 3: AI Analysis (Dynamic Text)
+        st.markdown("### 3. AI 核心分析牆 (Core Analysis)")
+        
         if "M" in model_code:
-            design_strat = "全屏蔽式設計隔離外部視覺噪音。大量運用暖米白清水模。"
-            ops_strat = "藝廊式引導：降低單位時間服務人次，增加停留質感。"
+            design_strat = "視覺純淨 (Visual Clarity) - 需使用全屏蔽式設計隔離外部視覺噪音。大量運用暖米白清水模。"
+            ops_strat = "藝廊式引導 - 降低單位時間服務人次，增加顧客在店內的停留質感。建議配置高階咖啡師型態的調茶師。"
         elif "C" in model_code:
-            design_strat = "保留部分通透性以吸引鄰里目光。"
-            ops_strat = "混合模式：尖峰時刻快速取餐，離峰時刻社交中心。"
-        else:
-            design_strat = "磨砂金屬，強調功能性與識別速度。"
-            ops_strat = "F1 維修站模式：導入全自助點餐機。"
+            design_strat = "生活連結 (Connection) - 保留部分通透性以吸引鄰里目光。空間設計需兼顧社交座位與快速動線。"
+            ops_strat = "混合模式 (Hybrid) - 尖峰時刻啟用快速取餐動線，離峰時刻轉換為鄰里社交中心。"
+        else: # X Type
+            design_strat = "極致能效 (Efficiency) - 強調功能性與識別速度。材質使用高耐用性的磨砂金屬，減少維護成本。"
+            ops_strat = "F1 維修站模式 - 所有動線優化以「秒」為單位。建議導入全自助點餐機，人力集中於生產線。"
             
         ai_content = f"""
 [ SYSTEM GENERATED REPORT - 2026 STRATEGIC PROTOCOL ]
@@ -190,14 +239,23 @@ if check_password():
 TARGET MODEL   : {model_code} - {model_name}
 MISSION        : {model_task}
 
-[ 營運與行銷方針 ]
+[ 營運方針 OPERATIONS ANALYSIS ]
 -----------------------------------------------------
 > 動線策略: {ops_strat}
-> 品牌 DNA: {design_strat}
-> 獲客總結: Index {target_index:.2f}x. {"建議投入最高級別預算" if target_index > 2.0 else "建議折扣策略"}。
+> 空間壓力: 當前人均 {sqft_pp:.1f} sqft。{"⚠️ 警告：空間嚴重不足，需強制執行外帶導向。" if pressure_coeff == 0.5 else "✅ 空間充裕，可執行完整品牌體驗。"}
+
+[ 行銷方針 MARKETING STRATEGY ]
+-----------------------------------------------------
+> 品牌 DNA 執行: {design_strat}
+> 聽覺設定: 設定為白噪音等級背景音，隔絕外部 {env_type} 的嘈雜。
+
+[ 獲客權重總結 ]
+-----------------------------------------------------
+目標客群指數 (Target Index) 達到 {target_index:.2f}x。
+{"🔥 此區為高價值核心戰區，建議投入最高級別行銷預算。" if target_index > 2.0 else "📉 此區客群結構較為分散，建議採取廣泛性折扣策略吸客。"}
         """
         st.markdown(f"<div class='ai-analysis'>{ai_content}</div>", unsafe_allow_html=True)
 
 else:
-    # Stop execution if password is wrong
-    st.stop()
+    # If not logged in, st.stop() ensures nothing below this runs
+    pass
