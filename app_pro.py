@@ -191,7 +191,8 @@ if check_password():
             fips = fips_resp['results'][0]['block_fips']
             
             vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B03002_003E,B01001_007E,B01001_011E"
-            url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
+            url = f"https://api.census.gov/data/2022/acs/acs5?get=B19013_001E,NAME&for=tract:406301&in=state:06%20county:037&key={C_KEY}"
+            # url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
             
             r = requests.get(url, timeout=5)
             if r.status_code != 200: return default_data
@@ -396,6 +397,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
