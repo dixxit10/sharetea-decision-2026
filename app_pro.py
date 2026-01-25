@@ -329,8 +329,8 @@ if check_password():
             st.bar_chart(pd.DataFrame(age.items(), columns=["年齡層", "比例"]).set_index("年齡層"), color="#3399FF")
         with col_charts3:
             st.markdown("**📐 空間設計診斷 (Design Ref)**")
-            st.metric("人均面積", f"{area_per_seat:.1f} sqft")
-            progress_val = min(area_per_seat / 40.0, 1.0)
+            # st.metric("人均面積", f"{area_per_seat:.1f} sqft")
+            # progress_val = min(area_per_seat / 40.0, 1.0)
             st.progress(progress_val)
             st.caption(f"體感質量: {quality_status}")
             if area_per_seat < 15:
@@ -391,6 +391,7 @@ if check_password():
             st.subheader("🤖 Gemini 3 戰略解析")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+
 
 
 
