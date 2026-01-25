@@ -32,49 +32,73 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 1. 安全驗證邏輯 (修復 KeyError) ---
-def check_password():
-    # 容錯讀取 Secret
+# --- 1. 安全驗證邏輯 (絕對防崩潰版) ---
+def get_correct_password():
+    """安全地獲取正確密碼，如果 Secrets 沒設定好，就用預設值"""
     try:
-        pwd = st.secrets["general"]["APP_PASSWORD"]
+        # 嘗試從 Secrets 讀取
+        if "general" in st.secrets and "APP_PASSWORD" in st.secrets["general"]:
+            return st.secrets["general"]["APP_PASSWORD"]
     except:
-        pwd = "sharetea2026" 
+        pass
+    # 萬一讀不到，回傳預設後門，防止 KeyError
+    return "sharetea2026"
+
+def check_password():
+    """密碼檢查主程序"""
+    # 1. 先把正確密碼拿出來，不要在 Callback 裡讀 Secrets
+    CORRECT_PASSWORD = get_correct_password()
 
     def password_entered():
-        # [關鍵修復] 使用 .get() 避免 KeyError，如果找不到 key 則回傳空字串
-        entered = st.session_state.get("password", "")
-        if entered == pwd:
+        """Callback: 驗證使用者輸入"""
+        # 使用 .get() 避免 session_state 報錯
+        user_input = st.session_state.get("password", "")
+        
+        if user_input == CORRECT_PASSWORD:
             st.session_state["password_correct"] = True
-            # 安全刪除密碼緩存
-            if "password" in st.session_state:
+            # 登入成功後，清除輸入框的暫存，避免殘留
+            try:
                 del st.session_state["password"]
+            except:
+                pass
         else:
             st.session_state["password_correct"] = False
 
-    # 檢查是否已登入
+    # 2. 檢查狀態
     if st.session_state.get("password_correct", False):
         return True
 
-    # 顯示登入介面
+    # 3. 顯示輸入框
     st.markdown("### 🔐 Sharetea 系統門禁")
     st.text_input("Security Access Code", type="password", on_change=password_entered, key="password")
+    
+    # 這裡也要加上 on_click 綁定，確保點按鈕也能觸發
     st.button("開啟戰略引擎", on_click=password_entered)
     
-    # 錯誤提示
+    # 4. 錯誤提示
     if "password_correct" in st.session_state and not st.session_state["password_correct"]:
         st.error("😕 密碼錯誤")
         
     return False
 
+# --- 程式進入點 ---
 if check_password():
-    # --- 2. 讀取 API Keys ---
-    try:
-        G_KEY = st.secrets["api_keys"]["GOOGLE_KEY"]
-        GEMINI_KEY = st.secrets["api_keys"]["GEMINI_KEY"]
-        C_KEY = st.secrets["api_keys"]["CENSUS_KEY"]
-    except KeyError:
-        st.error("⚠️ Secrets 設定不完整，請檢查 Streamlit 後台設定。")
-        st.stop()
+    
+    # --- 2. 讀取 API Keys (容錯處理) ---
+    # 建立一個安全的 Key 讀取器
+    def get_api_key(key_name):
+        try:
+            return st.secrets["api_keys"][key_name]
+        except:
+            return None
+
+    G_KEY = get_api_key("GOOGLE_KEY")
+    GEMINI_KEY = get_api_key("GEMINI_KEY")
+    C_KEY = get_api_key("CENSUS_KEY")
+
+    # 如果沒有 Key，顯示警告但不要當機
+    if not G_KEY or not GEMINI_KEY:
+        st.warning("⚠️ 系統偵測到 API Keys 缺失。請檢查 Streamlit Secrets 設定。部分功能可能無法運作。")
 
     # --- 3. 側邊欄輸入 ---
     st.sidebar.header("📐 物理空間與座標")
@@ -120,6 +144,7 @@ if check_password():
     
     def resolve_location(input_str):
         """解析地址或座標"""
+        if not G_KEY: return None, None, "API Key Missing"
         try:
             # 嘗試解析座標
             if "," in input_str and any(c.isdigit() for c in input_str):
@@ -144,7 +169,8 @@ if check_password():
             return None, None, None
 
     def get_census_data(lat, lng):
-        """獲取人口數據 (含 Fallback)"""
+        """獲取人口數據"""
+        if not C_KEY: return 5000, 2000, {}, {}, "Simulated (No Key)"
         try:
             # FCC API
             geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
@@ -187,6 +213,7 @@ if check_password():
             return 5000, 2000, {"東亞裔": 0.35, "西裔": 0.25, "非裔": 0.1}, {"18-24": 0.2, "25-34": 0.3}, "Estimated (Simulation)"
 
     def get_density(lat, lng):
+        if not G_KEY: return 5
         try:
             url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=1000&keyword=bubble tea&key={G_KEY}"
             res = requests.get(url, timeout=5).json()
@@ -215,7 +242,7 @@ if check_password():
             lat, lng, address_found = resolve_location(location_input)
         
         if lat is None:
-            st.error(f"❌ 無法解析位置：'{location_input}'")
+            st.error(f"❌ 無法解析位置：'{location_input}'。請檢查 API Key 或輸入格式。")
             st.stop()
             
         st.success(f"📍 已鎖定目標：{address_found}")
@@ -282,21 +309,25 @@ if check_password():
 
         # 顯示地圖
         with col_map:
-            try:
-                map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=18&size=640x640&scale=2&maptype=roadmap&markers=color:red%7C{lat},{lng}&key={G_KEY}"
-                map_response = requests.get(map_url, timeout=10)
-                map_bytes = BytesIO(map_response.content)
-                st.image(map_bytes, caption=f"📍 戰略座標快照: {address_found}", use_container_width=True)
-                st.json(strategic_packet)
-            except Exception as e:
-                st.error(f"地圖載入失敗: {e}")
+            if G_KEY:
+                try:
+                    map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=18&size=640x640&scale=2&maptype=roadmap&markers=color:red%7C{lat},{lng}&key={G_KEY}"
+                    map_response = requests.get(map_url, timeout=10)
+                    map_bytes = BytesIO(map_response.content)
+                    st.image(map_bytes, caption=f"📍 戰略座標快照: {address_found}", use_container_width=True)
+                    st.json(strategic_packet)
+                except Exception as e:
+                    st.error(f"地圖載入失敗: {e}")
+                    map_bytes = None
+            else:
+                st.warning("缺少 Google API Key，無法載入地圖")
                 map_bytes = None
 
         # 執行 AI 分析
         with col_ai:
             st.subheader("🤖 Gemini 3 Flash 全維度解析")
             
-            if map_bytes:
+            if map_bytes and GEMINI_KEY:
                 genai.configure(api_key=GEMINI_KEY)
                 
                 # 自動模型切換
@@ -325,4 +356,4 @@ if check_password():
                     except Exception as e_ai:
                         st.error(f"AI 生成失敗: {e_ai}")
             else:
-                st.warning("無法載入地圖，AI 視覺分析暫停。")
+                st.warning("無法執行 AI 分析 (缺少圖片或 API Key)")
