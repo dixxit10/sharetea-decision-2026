@@ -1,55 +1,50 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import math
 import requests
-import time
+import google.generativeai as genai
+from io import BytesIO
+from PIL import Image
 
-# -----------------------------------------------------------------------------
-# 1. Page Configuration & Strategic Visuals
-# -----------------------------------------------------------------------------
-st.set_page_config(
-    page_title="Sharetea Express 2026 SFS System (Live API)",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- 0. 系統配置 ---
+st.set_page_config(page_title="Sharetea Express 2026 戰略診斷", layout="wide")
 
 st.markdown("""
     <style>
-    /* 戰略黑主題 */
+    /* 全域背景 */
     .stApp { background-color: #0E0E0E; color: #E0E0E0; }
-    h1, h2, h3 { color: #FFFFFF !important; font-family: 'Helvetica Neue', sans-serif; font-weight: 700; }
     
-    /* 戰略綠/紅 */
-    .strategic-green { color: #00FF41 !important; font-family: 'Courier New', monospace; font-weight: bold; }
-    .strategic-red { color: #FF3333 !important; font-family: 'Courier New', monospace; font-weight: bold; }
-    
-    /* 數據框 */
-    .metric-box {
-        background-color: #1A1A1A;
-        border-left: 4px solid #00FF41;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    /* 定義框 */
+    .definition-box { 
+        background-color: #1A1A1A; 
+        border-left: 3px solid #00FF41; 
+        padding: 15px; 
+        margin-bottom: 10px; 
+        border-radius: 4px; 
+        font-size: 0.9em; 
     }
     
-    /* AI Console Style */
-    .ai-console {
-        font-family: 'Courier New', monospace;
-        background-color: #000;
-        padding: 20px;
-        border: 1px solid #333;
-        color: #00FF41;
-        white-space: pre-wrap;
+    /* 指標卡片 */
+    div[data-testid="metric-container"] { 
+        background-color: #1C1C1C; 
+        border: 1px solid #333; 
+        padding: 15px; 
+        border-radius: 8px; 
+        color: #fff; 
     }
-
-    /* 按鈕樣式 */
+    
+    /* Loading 動畫 */
+    .stSpinner > div { border-top-color: #00FF41 !important; }
+    
+    /* 執行按鈕 */
     div.stButton > button:first-child {
         background-color: #00FF41;
         color: #000000;
-        font-weight: 800;
+        font-weight: bold;
         border: none;
         width: 100%;
         padding: 0.8rem;
+        font-size: 1.1em;
     }
     div.stButton > button:first-child:hover {
         background-color: #00CC33;
@@ -57,285 +52,300 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
-# 2. REAL API INTEGRATION LAYER (The Dynamic Core)
-# -----------------------------------------------------------------------------
-
-def get_google_data(address, api_key):
-    """
-    呼叫 Google Maps API 獲取：
-    1. 經緯度 (Geocoding)
-    2. 地段類型 (Place Types -> Env Weight)
-    3. 競業密度 (Nearby Search -> Density)
-    """
-    results = {}
-    
-    # --- Step 1: Geocoding (地址 -> 座標) ---
-    geo_url = f"https://maps.googleapis.com/maps/api/geocode/json?address={address}&key={api_key}"
+# --- 1. 安全驗證 (Form 表單穩定版) ---
+def check_password():
+    if st.session_state.get("password_correct", False):
+        return True
     try:
-        geo_resp = requests.get(geo_url).json()
-        if geo_resp['status'] != 'OK':
-            st.error(f"Google Maps Error: {geo_resp['status']}")
-            return None
-        
-        location = geo_resp['results'][0]['geometry']['location']
-        place_id = geo_resp['results'][0]['place_id']
-        lat, lng = location['lat'], location['lng']
-        results['coords'] = (lat, lng)
-        results['formatted_address'] = geo_resp['results'][0]['formatted_address']
-
-        # --- Step 2: Env Weight (地段基因) ---
-        # 透過 Place Details 檢查這個地點是否屬於 Shopping Mall
-        details_url = f"https://maps.googleapis.com/maps/api/place/details/json?place_id={place_id}&fields=types&key={api_key}"
-        details_resp = requests.get(details_url).json()
-        place_types = details_resp.get('result', {}).get('types', [])
-        
-        if 'shopping_mall' in place_types or 'department_store' in place_types:
-            results['env_type'] = "Shopping Mall"
-            results['env_weight'] = 1.2
-        elif 'transit_station' in place_types:
-            results['env_type'] = "Transit Hub"
-            results['env_weight'] = 0.8
-        else:
-            # 預設邏輯：若無明確 Mall 標籤，視為一般街邊或 Plaza
-            results['env_type'] = "Street / Plaza"
-            results['env_weight'] = 1.0
-
-        # --- Step 3: Density (競業密度) ---
-        # 搜尋半徑 1000m 內的 "bubble tea"
-        radius = 1000
-        keyword = "bubble tea"
-        search_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&keyword={keyword}&key={api_key}"
-        search_resp = requests.get(search_url).json()
-        
-        # 計算回傳結果數量作為 Density
-        # Google API 一頁最多 20 筆，若要更精確需處理 next_page_token，此處簡化為單次請求
-        density_count = len(search_resp.get('results', []))
-        results['density'] = density_count
-        
-        return results
-
-    except Exception as e:
-        st.error(f"Google API 連線失敗: {e}")
-        return None
-
-def get_census_data(lat, lng, api_key):
-    """
-    呼叫 US Census API 獲取人口數據：
-    1. FCC API: 座標 -> FIPS Code (State + County + Tract)
-    2. Census ACS API: FIPS -> Demographics
-    """
-    # --- Step 1: Get FIPS via FCC API (No key needed) ---
-    fcc_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&showall=true&format=json"
-    try:
-        fcc_resp = requests.get(fcc_url, timeout=5).json()
-        if not fcc_resp['results']:
-            return None # 座標可能不在美國
-            
-        fips = fcc_resp['results'][0]['block_fips']
-        state_code = fips[:2]
-        county_code = fips[2:5]
-        tract_code = fips[5:11]
+        correct_pwd = st.secrets["general"]["APP_PASSWORD"]
     except:
-        return None
+        correct_pwd = "sharetea2026"
 
-    # --- Step 2: Get ACS Data via Census API ---
-    # 變數代碼 (ACS 5-Year): 
-    # B19013_001E (Median Household Income)
-    # B01003_001E (Total Population)
-    # B02001_002E (White), B02001_005E (Asian), B03003_003E (Hispanic) - 簡化示範
-    
-    variables = "B19013_001E,B01003_001E,B02001_005E,B03003_003E,B02001_002E"
-    census_url = f"https://api.census.gov/data/2021/acs/acs5?get={variables}&for=tract:{tract_code}&in=state:{state_code}%20county:{county_code}&key={api_key}"
-    
-    try:
-        census_resp = requests.get(census_url, timeout=5)
-        if census_resp.status_code == 200:
-            data = census_resp.json()
-            # data format: [['header1', ...], ['value1', ...]]
-            values = data[1]
-            
-            income = int(values[0]) if values[0] else 50000
-            total_pop = int(values[1]) if values[1] else 1
-            asian_pop = int(values[2]) if values[2] else 0
-            hisp_pop = int(values[3]) if values[3] else 0
-            white_pop = int(values[4]) if values[4] else 0
-            
-            # 簡易計算比例 (真實專案需更嚴謹處理重疊族裔定義)
-            race_dist = {
-                "Asian": round((asian_pop / total_pop) * 100, 1),
-                "Hispanic": round((hisp_pop / total_pop) * 100, 1),
-                "White": round((white_pop / total_pop) * 100, 1),
-                "Other": round(((total_pop - asian_pop - hisp_pop - white_pop) / total_pop) * 100, 1)
-            }
-            
-            # 這裡簡化年齡分佈抓取，使用固定比例模擬以保持代碼長度可讀性
-            # 真實應用需抓取 B01001 系列約 10-20 個變數來計算 18-24, 25-34
-            age_dist = {"25-34": 30.0, "18-24": 20.0, "35-45": 20.0, "Other": 30.0} 
+    with st.form("login_form"):
+        st.markdown("### 🔐 Sharetea 系統門禁")
+        input_pwd = st.text_input("Security Access Code", type="password")
+        submit_button = st.form_submit_button("開啟戰略引擎")
 
-            return {
-                "monthly_income": round(income / 12),
-                "race": race_dist,
-                "age": age_dist,
-                "source": "Census ACS 2021"
-            }
+    if submit_button:
+        if input_pwd == correct_pwd:
+            st.session_state["password_correct"] = True
+            st.rerun()
         else:
-            st.warning("Census API 回傳錯誤，使用備用數據。")
-            return None
-    except:
-        return None
+            st.error("😕 密碼錯誤")
+    return False
 
-# -----------------------------------------------------------------------------
-# 3. SFS Calculation Logic (The Constitution)
-# -----------------------------------------------------------------------------
-def calculate_sfs(market_data, census_data, area_sqft, seats_cat):
+# --- 主程式 ---
+if check_password():
     
-    # Fallback data if API failed
-    if not census_data:
-        census_data = {
-            "monthly_income": 4500, # Default fallback
-            "race": {"Asian": 20, "Hispanic": 20, "White": 40, "Other": 20},
-            "age": {"25-34": 25, "18-24": 15, "35-45": 20, "Other": 40}
-        }
-        
-    # 1. Target Index
-    race = census_data['race']
-    age = census_data['age']
+    # --- 2. 讀取 Keys ---
+    def get_api_key(key_name):
+        try: return st.secrets["api_keys"][key_name]
+        except: return None
+
+    G_KEY = get_api_key("GOOGLE_KEY")
+    GEMINI_KEY = get_api_key("GEMINI_KEY")
+    C_KEY = get_api_key("CENSUS_KEY")
+
+    # --- 3. 側邊欄輸入區 (精簡版) ---
+    st.sidebar.header("📐 戰略參數輸入")
     
-    race_score = ((race['Asian'] + race['Hispanic'] + race['White']) * 2.5 + race['Other'] * 1.0) / 100
-    age_score = ((age['25-34'] * 2.5) + (age['18-24'] * 2.3) + (age['35-45'] * 2.0) + age['Other'] * 1.0) / 100
-    target_index = (race_score + age_score) / 2
+    # 3.1 地址輸入
+    location_input = st.sidebar.text_input(
+        "目標位置 (地址 或 Lat,Lng):", 
+        value="18558 Gale Ave, City of Industry, CA",
+        help="輸入地址自動解析"
+    )
+
+    # 3.2 地段基因選單
+    st.sidebar.markdown("#### 地段基因 (Environment)")
+    env_type = st.sidebar.selectbox(
+        "選擇地段類型:",
+        ["Shopping Mall", "Community", "Plaza", "Main Street", "Transit Hub", "Food Court"]
+    )
+    # 定義權重
+    env_mapping = {
+        "Shopping Mall": 1.2,
+        "Community": 1.0, 
+        "Plaza": 1.0,
+        "Main Street": 0.8,
+        "Transit Hub": 0.8,
+        "Food Court": 0.8
+    }
+    env_weight = env_mapping[env_type]
     
-    # 2. Env Weight
-    env_weight = market_data['env_weight']
+    # 3.3 物理空間
+    st.sidebar.markdown("#### 物理空間")
+    cust_area = st.sidebar.slider("顧客活動空間 (sq. ft.):", 100, 600, 300)
+    seat_choice = st.sidebar.radio("預計座位數:", ["0-5 席", "6-12 席", "13-20 席", "21 席以上"], index=1)
     
-    # 3. Pressure Coeff (Physical)
-    seat_map = {"0-6 席": 4, "7-12 席": 10, "13-20 席": 17, "20+ 席": 25}
-    est_seats = seat_map.get(seats_cat, 10)
-    sqft_pp = area_sqft / est_seats if est_seats > 0 else 0
+    # 計算人均空間 & 壓力係數
+    est_seats = 5 if "0-5" in seat_choice else 12 if "6-12" in seat_choice else 20 if "13-20" in seat_choice else 30
+    area_per_seat = cust_area / est_seats if est_seats > 0 else 0
     
-    if sqft_pp >= 35:
-        p_coeff = 1.2
-        p_msg = "Visual Clarity (視覺純淨)"
-    elif sqft_pp < 15:
-        p_coeff = 0.5
-        p_msg = "Overload (嚴重過載)"
+    if area_per_seat >= 35:
+        pressure_coeff = 1.2
+        quality_status = "✨ 極致清晰 (Visual Clarity)"
+        q_color = "#00FF41"
+    elif area_per_seat >= 25:
+        pressure_coeff = 1.0
+        quality_status = "✅ 標準質感 (Standard)"
+        q_color = "#3399FF"
+    elif area_per_seat >= 15:
+        pressure_coeff = 0.75
+        quality_status = "⚠️ 體驗過載 (Overload)"
+        q_color = "#FFAA00"
     else:
-        p_coeff = 1.0
-        p_msg = "Balanced (標準平衡)"
-        
-    # 4. SFS Formula
-    income = census_data['monthly_income']
-    density = market_data['density']
+        pressure_coeff = 0.5
+        quality_status = "🚨 嚴重雜訊 (Noise)"
+        q_color = "#FF3333"
     
-    numerator = (income * target_index * env_weight) * 7 * p_coeff
-    denominator = (density ** 0.7) + 1
-    sfs = numerator / denominator
+    st.sidebar.markdown(f"判定: <span style='color:{q_color}; font-weight:bold;'>{quality_status}</span>", unsafe_allow_html=True)
+    st.sidebar.caption(f"地段權重: {env_weight}x | 壓力補償: {pressure_coeff}x")
+
+    # 3.4 執行按鈕
+    st.sidebar.markdown("---")
+    execute_btn = st.sidebar.button("啟動戰略分析 Execute", type="primary")
+
+    # --- 4. 核心工具函式 ---
+    def resolve_location(input_str):
+        if not G_KEY: return None, None, "No API Key"
+        try:
+            if "," in input_str and any(c.isdigit() for c in input_str):
+                try:
+                    parts = input_str.split(',')
+                    if len(parts) >= 2:
+                        return float(parts[0].strip()), float(parts[1].strip()), f"座標: {input_str}"
+                except: pass
+            
+            url = f"https://maps.googleapis.com/maps/api/geocode/json?address={input_str}&key={G_KEY}"
+            resp = requests.get(url, timeout=10).json()
+            if resp['status'] == 'OK':
+                loc = resp['results'][0]['geometry']['location']
+                return loc['lat'], loc['lng'], resp['results'][0]['formatted_address']
+            return None, None, None
+        except: return None, None, None
+
+    def get_census_data(lat, lng):
+        """直接回傳 API 數據 (如果失敗則回傳預設值)"""
+        # 預設數據 (Fallback)
+        default_data = {
+            'income': 50000,
+            'eth': {'東亞裔': 0.35, '西裔': 0.25, '非裔': 0.1, '其他': 0.3},
+            'age': {'18-24': 0.2, '25-34': 0.3, '其他': 0.5},
+            'source': "Estimated (API Unavailable)"
+        }
+
+        if not C_KEY: return default_data
+        
+        try:
+            # FCC API
+            geo_url = f"https://geo.fcc.gov/api/census/area?lat={lat}&lon={lng}&format=json"
+            fips_resp = requests.get(geo_url, timeout=5).json()
+            if not fips_resp.get('results'): return default_data
+            fips = fips_resp['results'][0]['block_fips']
+            
+            # Census API
+            vars = "B19013_001E,B01001_001E,B03002_006E,B03002_012E,B03002_004E,B01001_007E,B01001_011E"
+            url = f"https://api.census.gov/data/2022/acs/acs5?get={vars}&for=tract:{fips[5:11]}&in=state:{fips[:2]}%20county:{fips[2:5]}&key={C_KEY}"
+            
+            r = requests.get(url, timeout=5)
+            if r.status_code != 200: return default_data
+            d = r.json()[1]
+            
+            def safe_val(v): return int(v) if v else 0
+            pop = safe_val(d[1]) or 1
+            
+            # 計算真實數據
+            return {
+                'income': safe_val(d[0]) / 12 if safe_val(d[0]) > 0 else 4500,
+                'eth': {
+                    '東亞裔': round(safe_val(d[2])/pop, 3),
+                    '西裔': round(safe_val(d[3])/pop, 3),
+                    '非裔': round(safe_val(d[4])/pop, 3),
+                    '其他': round((pop - safe_val(d[2]) - safe_val(d[3]) - safe_val(d[4]))/pop, 3)
+                },
+                'age': {
+                    '18-24': round(safe_val(d[5])/pop, 3),
+                    '25-34': round(safe_val(d[6])/pop, 3),
+                    '其他': round((pop - safe_val(d[5]) - safe_val(d[6]))/pop, 3)
+                },
+                'source': "Official Census Data"
+            }
+        except:
+            return default_data
+
+    def get_density(lat, lng):
+        if not G_KEY: return 5
+        try:
+            url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius=1000&keyword=bubble tea&key={G_KEY}"
+            res = requests.get(url, timeout=5).json()
+            return len(res.get('results', []))
+        except: return 5
+
+    # --- 5. 主介面 ---
+    st.title("📚 Sharetea 2026 戰略指標體系")
+    st.latex(r"SFS = \frac{(Income \times TargetIndex \times EnvWeight) \times 7 \times PressureCoeff}{Density^{0.7} + 1}")
     
-    return sfs, target_index, p_coeff, p_msg, sqft_pp, census_data
+    # 定義說明
+    c1, c2, c3 = st.columns(3)
+    c1.markdown("<div class='definition-box'><b>SFS 戰略總分</b><br>整合消費力、族群權重、地段基因與空間壓力。</div>", unsafe_allow_html=True)
+    c2.markdown("<div class='definition-box'><b>空間體感質量</b><br>直接決定品牌體驗的物理上限 (過載/標準/清晰)。</div>", unsafe_allow_html=True)
+    c3.markdown("<div class='definition-box'><b>位置分級基準</b><br>M: 15k+ / C: 8.5k+ / X: < 8.5k。</div>", unsafe_allow_html=True)
 
-def get_model_decision(sfs):
-    if sfs >= 15000: return "Model (M)", "品牌綠洲店"
-    elif sfs >= 8500: return "Community (C)", "社區標準店"
-    else: return "eXpress (X)", "高效機能店"
-
-# -----------------------------------------------------------------------------
-# 4. Main Execution Flow
-# -----------------------------------------------------------------------------
-
-# Load Secrets
-try:
-    GOOGLE_KEY = st.secrets["api_keys"]["GOOGLE_KEY"]
-    CENSUS_KEY = st.secrets["api_keys"]["CENSUS_KEY"]
-except:
-    st.error("⚠️ API Keys Missing. 請在 .streamlit/secrets.toml 設定 GOOGLE_KEY 與 CENSUS_KEY")
-    st.stop()
-
-# --- Sidebar Input (Dynamic) ---
-st.sidebar.markdown("### ⬅️ Strategic Input")
-target_address = st.sidebar.text_input("目標地址 (Address)", "18558 Gale Ave, City of Industry, CA")
-
-st.sidebar.markdown("#### 物理空間")
-area_sqft = st.sidebar.number_input("顧客活動空間 (sq. ft.)", 100, 600, 300)
-seats_cat = st.sidebar.selectbox("預計座位數", ["0-6 席", "7-12 席", "13-20 席", "20+ 席"], index=1)
-
-run_btn = st.sidebar.button("啟動 API 戰略分析 Execute", type="primary")
-
-if run_btn:
-    with st.spinner('🛰️ 正在連線 Google Maps Platform 與 Census Bureau...'):
-        
-        # 1. Fetch Real Data
-        google_data = get_google_data(target_address, GOOGLE_KEY)
-        
-        if google_data:
-            lat, lng = google_data['coords']
-            census_data = get_census_data(lat, lng, CENSUS_KEY)
-            
-            # 2. Calculate SFS
-            sfs, target_idx, p_coeff, p_msg, sqft_pp, final_census = calculate_sfs(google_data, census_data, area_sqft, seats_cat)
-            model_code, model_name = get_model_decision(sfs)
-            
-            # --- Dashboard ---
-            st.title(f"📍 2026 戰略決策報告")
-            st.markdown(f"**分析標的**: `{google_data['formatted_address']}`")
-            
-            # Section 1: Indicators
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.markdown(f"<div class='metric-box'><h3>SFS 總分</h3><span class='strategic-green' style='font-size:42px'>{int(sfs):,}</span></div>", unsafe_allow_html=True)
-            with col2:
-                st.markdown(f"<div class='metric-box'><h3>店型判定</h3><span style='font-size:36px'>{model_code}</span><br><small>{model_name}</small></div>", unsafe_allow_html=True)
-            with col3:
-                p_color = "strategic-red" if p_coeff < 1.0 else "strategic-green"
-                st.markdown(f"<div class='metric-box'><h3>物理壓力係數</h3><span class='{p_color}' style='font-size:36px'>{p_coeff}x</span><br><small>{p_msg}</small></div>", unsafe_allow_html=True)
-
-            # Section 2: Data Investigation (API Results)
-            st.markdown("### 📡 API 數據調查報告 (The Investigation)")
-            
-            d1, d2 = st.columns(2)
-            with d1:
-                st.markdown("**市場環境 (Google Maps API)**")
-                st.write(f"地段基因: **{google_data['env_type']}** (Weight: {google_data['env_weight']}x)")
-                st.write(f"1km 競業密度: **{google_data['density']}** 家 (Bubble Tea)")
-                st.write(f"座標: `{lat}, {lng}`")
-            
-            with d2:
-                st.markdown("**區域人口 (Census API)**")
-                if final_census.get("source"):
-                    st.write(f"預估月收入: **${final_census['monthly_income']:,}**")
-                    st.write(f"數據來源: {final_census['source']}")
-                    st.caption(f"Target Index: {target_idx:.2f}x (高獲利族群權重)")
-                    # Show breakdown
-                    df_race = pd.DataFrame([final_census['race']]).T
-                    st.dataframe(df_race, use_container_width=True)
-                else:
-                    st.warning("無法獲取人口普查數據，已使用預設值計算。")
-
-            # Section 3: AI Console
-            st.markdown("### 🧠 AI 核心戰略指令")
-            
-            if "M" in model_code:
-                strat = "執行「視覺純淨」策略。該區具備高消費力與強品牌信號，需使用清水模與全封閉設計隔離外部噪音。"
-            elif "C" in model_code:
-                strat = "執行「生活連結」策略。該區強調鄰里關係，保留落地窗與部分通透性。"
-            else:
-                strat = "執行「極致能效」策略。高密度競爭區，需專注於出餐速度與識別度，使用高強度磨砂金屬。"
-            
-            console_text = f"""
-[ SYSTEM PROTOCOL 2026.01 - LIVE DATA ]
----------------------------------------
-> 偵測到競業密度為 {google_data['density']} 家。
-> 地段基因為 {google_data['env_type']}。
-
-[ 戰略建議 ]
-{strat}
-
-[ 物理空間診斷 ]
-人均面積 {int(sqft_pp)} sqft。
-{"⚠️ 警告：空間嚴重不足，需強制執行外帶導向。" if p_coeff == 0.5 else "✅ 空間充裕，可執行完整品牌體驗。"}
----------------------------------------
-            """
-            st.markdown(f"<div class='ai-console'>{console_text}</div>", unsafe_allow_html=True)
-            
+    # --- 6. 執行邏輯 ---
+    if execute_btn:
+        if not location_input:
+            st.error("❌ 請輸入位置")
         else:
-            st.error("無法解析該地址，請檢查輸入。")
+            with st.spinner("🛰️ 戰略數據運算與衛星掃描中..."):
+                # 1. 解析地址
+                lat, lng, address_found = resolve_location(location_input)
+                
+                if lat:
+                    # 2. 獲取數據
+                    census_res = get_census_data(lat, lng)
+                    density = get_density(lat, lng)
+                    
+                    income = census_res['income']
+                    eth = census_res['eth']
+                    age = census_res['age']
+                    
+                    # 3. SFS 運算
+                    age_score = (age['25-34'] * 2.5 + age['18-24'] * 2.3) / 100
+                    eth_score = (eth['東亞裔'] * 3.0 + eth['西裔'] * 1.5) / 100 
+                    target_index = (eth_score + age_score)
+                    if target_index < 1.0: target_index = 1.0
+                    
+                    final_sfs = ((income * target_index * env_weight) * 7 * pressure_coeff) / (math.pow(density + 1, 0.7))
+                    
+                    # 4. 判定分級
+                    if cust_area < 250:
+                        level = "高效普及 (eXpress-X)"
+                        limit_msg = f"⚠️ 空間狹窄：建議以此區域之 X 店型營運。"
+                    else:
+                        if final_sfs >= 15000: level = "品牌指標 (Model-M)"
+                        elif final_sfs >= 8500: level = "社區標準 (Community-C)"
+                        else: level = "高效普及 (eXpress-X)"
+                        limit_msg = f"✅ 空間條件適宜：{quality_status}"
+
+                    # 5. 核心指標卡片
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("SFS 戰略總分", f"{int(final_sfs):,}", delta="核心指標")
+                    m2.metric("位置分級", level, delta_color="off")
+                    m3.metric("月消費力 (Income)", f"${int(income):,}")
+                    m4.metric("地段基因", f"{env_type} ({env_weight}x)")
+                    
+                    if "⚠️" in limit_msg: st.warning(limit_msg)
+                    else: st.success(limit_msg)
+                    
+                    if census_res['source'] != "Official Census Data":
+                        st.caption(f"ℹ️ 提示：{census_res['source']}")
+
+                    st.divider()
+                    
+                    # --- 6. 視覺化圖表區 ---
+                    col_charts1, col_charts2, col_charts3 = st.columns(3)
+                    
+                    with col_charts1:
+                        st.markdown("**📊 族裔組成 (Ethnic)**")
+                        st.bar_chart(pd.DataFrame(eth.items(), columns=["族裔", "比例"]).set_index("族裔"), color="#00FF41")
+
+                    with col_charts2:
+                        st.markdown("**📊 年齡結構 (Age)**")
+                        st.bar_chart(pd.DataFrame(age.items(), columns=["年齡層", "比例"]).set_index("年齡層"), color="#3399FF")
+
+                    with col_charts3:
+                        st.markdown("**📏 空間壓力 (Pressure)**")
+                        st.metric("人均面積", f"{area_per_seat:.1f} sqft")
+                        progress_val = min(area_per_seat / 40.0, 1.0)
+                        st.progress(progress_val)
+                        st.caption(f"競業密度: {density} 家/km")
+
+                    st.divider()
+
+                    # --- 7. 地圖與 AI 視覺分析 ---
+                    col_map, col_ai = st.columns([1, 1])
+                    
+                    packet = {
+                        "地址": address_found,
+                        "SFS": int(final_sfs),
+                        "分級": level,
+                        "地段": env_type,
+                        "月收": f"${income:,.0f}",
+                        "人均面積": f"{area_per_seat} sqft",
+                        "密度": density,
+                        "族裔": eth
+                    }
+                    
+                    map_bytes = None
+                    with col_map:
+                        if G_KEY:
+                            map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=18&size=640x640&scale=2&maptype=roadmap&markers=color:red%7C{lat},{lng}&key={G_KEY}"
+                            try:
+                                img_data = requests.get(map_url).content
+                                map_bytes = BytesIO(img_data)
+                                st.image(map_bytes, caption="📍 戰略座標快照", use_container_width=True)
+                                st.json(packet)
+                            except: st.error("地圖載入失敗")
+                        else: st.warning("無地圖 (Missing Key)")
+                            
+                    with col_ai:
+                        if map_bytes and GEMINI_KEY:
+                            st.subheader("🤖 Gemini 3 戰略解析")
+                            genai.configure(api_key=GEMINI_KEY)
+                            try: model = genai.GenerativeModel('gemini-3-flash-preview')
+                            except: model = genai.GenerativeModel('gemini-1.5-flash')
+                            
+                            prompt = f"""
+                            角色：Sharetea 2026 戰略專家。
+                            數據包：{packet}
+                            任務：
+                            1. **地段視覺驗證**：用戶設定此地為 [{env_type}]，請觀察衛星圖中的建築密度、道路寬度與停車場配置，判斷這是否準確？(例如設定 Mall 但看起來像街邊)。
+                            2. **戰略執行**：針對此區域的 SFS 分數與族裔結構，給出具體的行銷建議。
+                            3. **空間設計**：針對人均 {area_per_seat} sqft 的空間，給出設計上的放大空間感建議。
+                            """
+                            with st.spinner("AI 正在閱讀地圖紋理..."):
+                                map_bytes.seek(0)
+                                res = model.generate_content([prompt, Image.open(map_bytes)])
+                                st.markdown(res.text)
+                        else: st.warning("AI 未啟動 (缺少 Key 或 地圖)")
