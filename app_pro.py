@@ -364,50 +364,68 @@ if check_password():
 
         st.divider()
 
-        # 地圖與 AI
-        if execute_btn: 
-            packet = {
-                "地址": data['address'],
-                "月收": f"${income:,.0f}",
-                "密度": density,
-                "族裔": eth,
-            }
-            
-            map_bytes = None
-            if G_KEY:
-                map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={data['lat']},{data['lng']}&zoom=18&size=640x640&scale=2&maptype=roadmap&markers=color:red%7C{data['lat']},{data['lng']}&key={G_KEY}"
-                try:
-                    img_data = requests.get(map_url).content
-                    map_bytes = BytesIO(img_data)
-                    st.session_state['locked_map'] = map_bytes
-                except: pass
-            
-            ai_text = "AI 分析連線失敗"
-            if map_bytes and GEMINI_KEY:
-                genai.configure(api_key=GEMINI_KEY)
-                try: model = genai.GenerativeModel('gemini-1.5-flash')
-                except: model = genai.GenerativeModel('gemini-1.5-flash')
+              
+        # 1. 執行與存儲邏輯 (只有點擊按鈕時觸發)
+        if execute_btn:
+            with st.spinner("🛰️ 戰略數據運算與衛星掃描中..."):
+                # 準備數據包
+                packet = {
+                    "地址": data['address'],
+                    "月收": f"${income:,.0f}",
+                    "密度": density,
+                    "族裔": eth,
+                    "年齡層": age
+                }
                 
-                prompt = f"""
-                角色：Sharetea 2026 戰略專家。
-                數據包：{packet}
-                任務：
-                1. 請觀察衛星圖確認建築密度與道路特徵是否吻合
-                2. (由大環境決定) 及族裔結構，給出商業定位建議。
-                3. 給出裝修與動線建議。
-                """
-                try:
-                    map_bytes.seek(0)
-                    res = model.generate_content([prompt, Image.open(map_bytes)])
-                    ai_text = res.text
-                    st.session_state['locked_ai_text'] = ai_text
-                except: pass
+                # 抓取 Google Static Map
+                if G_KEY:
+                    map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={data['lat']},{data['lng']}&zoom=18&size=640x640&scale=2&maptype=roadmap&markers=color:red%7C{data['lat']},{data['lng']}&key={G_KEY}"
+                    try:
+                        img_data = requests.get(map_url).content
+                        st.session_state['locked_map'] = BytesIO(img_data)
+                    except Exception as e:
+                        st.error(f"地圖抓取失敗: {str(e)}")
         
+                # 呼叫 Gemini 進行 DNA 戰略分析
+                if GEMINI_KEY and 'locked_map' in st.session_state:
+                    genai.configure(api_key=GEMINI_KEY)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # 融入品牌 DNA 關鍵字：現代萃取、律動呼吸感、儀式化連結
+                    prompt = f"""
+                    角色：Sharetea 2026 戰略專家 (Marketing Designer)。
+                    品牌 DNA 核心：1. 現代萃取(專業) 2. 律動呼吸感(降噪) 3. 儀式化連結(情感)。
+                    數據包：{packet}
+                    
+                    任務：
+                    1. 診斷場域：觀察衛星圖，判定 Business Mix % 屬於「熱區、社區、或通路」。
+                    2. 品牌定位：針對 24-35 歲(華、西、白人)，說明如何運用 DNA 支柱提升品牌引力(AOI)。
+                    3. 空間處方：基於數據，建議該店應執行「路徑 A：視覺降噪包」或「路徑 B：效率擴張包」。
+                    4. 視覺細節：給出符合『誠實、效率、降噪』關鍵字的裝修細節建議。
+                    """
+                    
+                    try:
+                        # 關鍵修正：歸零指針以供重複讀取
+                        st.session_state['locked_map'].seek(0)
+                        img = Image.open(st.session_state['locked_map'])
+                        
+                        res = model.generate_content([prompt, img])
+                        st.session_state['locked_ai_text'] = res.text
+                    except Exception as e:
+                        st.error(f"AI 解析失敗: {str(e)}")
+        
+        # 2. 獨立顯示區塊 (只要 session_state 有資料就顯示，不受按鈕狀態影響)
+        st.divider()
         col_map, col_ai = st.columns([1, 1])
+        
         with col_map:
             if 'locked_map' in st.session_state:
-                st.image(st.session_state['locked_map'], caption="📍 戰略座標快照", use_container_width=True)
+                st.image(st.session_state['locked_map'], caption="📍 戰略座標衛星快照", use_container_width=True)
+        
         with col_ai:
-            st.subheader("🤖 Gemini 3 戰略解析")
+            st.subheader("🤖 Gemini 3 戰略診斷報告")
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+            elif execute_btn:
+                st.info("AI 專家正在分析地段 DNA，請稍候...")session_state['locked_ai_text'])
+        
