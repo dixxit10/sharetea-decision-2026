@@ -389,7 +389,7 @@ if check_password():
                 # 呼叫 Gemini 進行 DNA 戰略分析
                 if GEMINI_KEY and 'locked_map' in st.session_state:
                     genai.configure(api_key=GEMINI_KEY)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('gemini-3-flash-preview')
                     
                     # 融入品牌 DNA 關鍵字：現代萃取、律動呼吸感、儀式化連結
                     prompt = f"""
@@ -427,4 +427,5 @@ if check_password():
             elif execute_btn:
                 st.info("AI 專家正在分析地段 DNA，請稍候...")
         
+
 
