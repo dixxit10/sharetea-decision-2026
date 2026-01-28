@@ -418,14 +418,13 @@ if check_password():
         st.divider()
         col_map, col_ai = st.columns([1, 1])
         
-        with col_map:
-            if 'locked_map' in st.session_state:
-                st.image(st.session_state['locked_map'], caption="📍 戰略座標衛星快照", use_container_width=True)
-        
         with col_ai:
-            st.subheader("🤖 Gemini 3 戰略診斷報告")
+            st.subheader("🤖 Gemini 3 戰略解析")
+            # 檢查是否有已經存好的 AI 文字
             if 'locked_ai_text' in st.session_state:
                 st.markdown(st.session_state['locked_ai_text'])
+            # 如果還沒有文字但按鈕被按下了，顯示 Loading 提示
             elif execute_btn:
-                st.info("AI 專家正在分析地段 DNA，請稍候...")session_state['locked_ai_text'])
+                st.info("AI 專家正在分析地段 DNA，請稍候...")
         
+
